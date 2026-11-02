@@ -1,11 +1,7 @@
 /* 公開版の画面処理: shared。共有状態はapp.jsで管理する。 */
-let analysisEvidenceReturn = null;
 
-let analysisFixedViewer = null;
 
-let analysisFixedViewerGeneration = 0;
-
-function analysisElement(tagName, className = '', textValue = '') {
+function uiElement(tagName, className = '', textValue = '') {
   const element = document.createElement(tagName);
   if (className) element.className = className;
   if (textValue !== undefined && textValue !== null && textValue !== '') {
@@ -14,7 +10,7 @@ function analysisElement(tagName, className = '', textValue = '') {
   return element;
 }
 
-function analysisEndpointText(value, timed, missing) {
+function transcriptEndpointText(value, timed, missing) {
   if (value === null || value === undefined || value === '' || typeof value === 'boolean'
       || !Number.isFinite(Number(value)) || Number(value) < 0) {
     return missing > 0 ? `時刻不明${missing}発話` : '時刻不明';
@@ -24,56 +20,14 @@ function analysisEndpointText(value, timed, missing) {
   return `${formatTime(value)}${coverage}`;
 }
 
-function setAnalysisDirty(dirty, trackMutation = true) {
-  analysisState.dirty = Boolean(dirty);
-  if (analysisState.dirty && trackMutation) analysisMutationGeneration += 1;
-  document.querySelectorAll('[data-analysis-save]').forEach(button => {
-    button.disabled = !analysisState.dirty || analysisSaveInProgress;
-    button.textContent = analysisSaveInProgress
-      ? '保存中…'
-      : analysisState.dirty ? '設定とコードを保存' : '保存済み';
-  });
-  document.querySelectorAll('[data-analysis-save-state]').forEach(element => {
-    element.textContent = analysisState.dirty ? '未保存の変更があります' : '分析設定は保存済みです';
-    element.classList.toggle('unsaved', analysisState.dirty);
-  });
-  const sideStatus = document.querySelector('#analysis-desktop-side-status');
-  if (sideStatus) {
-    sideStatus.classList.toggle('unsaved', analysisState.dirty);
-    sideStatus.textContent = analysisState.dirty
-      ? '設定・コードに未保存の変更があります'
-      : analysisState.data ? '保存済みの分析結果を表示中' : '';
-  }
-  if (!ANALYSIS_COMING_SOON) refreshInsightControls();
-  if (!ANALYSIS_COMING_SOON) refreshAnalysisStorage();
-}
 
 function contentButton(label, action, className = 'secondary-button compact-button') {
-  const button = analysisElement('button', className, label);
+  const button = uiElement('button', className, label);
   button.type = 'button';
   button.addEventListener('click', action);
   return button;
 }
 
-function analysisEvidenceTimeValid(segment) {
-  return Boolean(segment && !segment.time_unknown
-    && typeof segment.start === 'number' && Number.isFinite(segment.start)
-    && typeof segment.end === 'number' && Number.isFinite(segment.end)
-    && segment.start >= 0 && segment.end >= segment.start);
-}
-
-function returnToAnalysisEvidence() {
-  if (analysisEvidenceReturn) openAnalysisForItem(analysisEvidenceReturn.itemId);
-}
-
-function closeFixedAnalysisViewer() {
-  // Invalidate synchronously: native close events may arrive after another open.
-  ++analysisFixedViewerGeneration;
-  if (!analysisFixedViewer?.dialog.open) return false;
-  analysisFixedViewer.dialog.close();
-  analysisFixedViewer.body.replaceChildren();
-  return true;
-}
 
 function fallbackSpeaker(label) {
   if (!label || label === 'UNKNOWN') return '話者（未判定）';
@@ -81,20 +35,6 @@ function fallbackSpeaker(label) {
   return match ? `話者 ${Number(match[1]) + 1}` : label;
 }
 
-function captureAnalysisContext() {
-  return {itemId: analysisState.itemId, data: analysisState.data, navigation: analysisNavigationGeneration,
-    mutation: analysisMutationGeneration, sourceRevision: analysisState.data?.item?.revision_count,
-    analysisRevision: analysisState.data?.item?.analysis_revision};
-}
-
-function isAnalysisContextCurrent(context) {
-  return context.itemId === analysisState.itemId && context.data === analysisState.data
-    && context.navigation === analysisNavigationGeneration && context.mutation === analysisMutationGeneration
-    && context.sourceRevision === analysisState.data?.item?.revision_count
-    && context.analysisRevision === analysisState.data?.item?.analysis_revision;
-}
-
-function segmentClassificationBusy() { return segmentClassificationRequests.has(analysisState.itemId); }
 
 function setAlert(element, message, error = false) {
   if (!element) return;
@@ -209,4 +149,11 @@ function showDraftRecovery(kind) {
   const deleted = kind === 'transcript' ? (currentJobBaseline?.segments || []).filter(item => !(currentJob?.segments || []).some(segment => segment.id === item.id)).length : speakerRegistryDeletedIds.size;
   panel.querySelector('[data-draft-count]').textContent = `追加・変更 ${count}件 / 削除 ${deleted}件。会話設定も含む未保存内容全体をJSONで退避できます。退避後に再読み込みし、最新の内容と照合してください。自動上書きはしません。`;
   panel.querySelector('button')?.focus();
+}
+
+function validSegmentTime(segment) {
+  return Boolean(segment && !segment.time_unknown
+    && typeof segment.start === 'number' && Number.isFinite(segment.start)
+    && typeof segment.end === 'number' && Number.isFinite(segment.end)
+    && segment.start >= 0 && segment.end >= segment.start);
 }

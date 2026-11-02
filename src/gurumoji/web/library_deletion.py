@@ -37,7 +37,6 @@ def make_library_deletion(
     library_row: Any,
     local_path_access_allowed: Any,
     reconcile_edit_transactions_before_delete: Any,
-    retire_input_vault: Any,
     trash_directory: Callable[[], Path],
     trash_retention_days: Callable[[], int],
 ) -> Callable[..., Any]:
@@ -232,7 +231,6 @@ def make_library_deletion(
 
         with jobs_lock:
             jobs.pop(item_id, None)
-        retire_input_vault(item_id)
         try:
             cleanup_errors = library_trash.finish(
                 trash_entry, lambda source, target: durable_move(source, target, replace_existing=False))

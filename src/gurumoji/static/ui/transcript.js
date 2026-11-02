@@ -17,7 +17,7 @@ function speakerMetrics() {
   const markerMatches = (left, right) => Object.is(left, right)
     || Boolean(emptyMarkerKind(left) && emptyMarkerKind(left) === emptyMarkerKind(right));
   const valid = row => row && markerKnown(row.time_unknown)
-    && analysisEvidenceTimeValid({start: row.start, end: row.end})
+    && validSegmentTime({start: row.start, end: row.end})
     && row.start <= 31 * 86400 && row.end <= 31 * 86400;
   segments.forEach((segment, index) => {
     const label = segment.speaker || 'UNKNOWN';
@@ -139,7 +139,7 @@ function conversationRoleControl(profile, label, metrics, index) {
     activeProfile.session_role_source = 'explicit';
     setCurrentJobDirty();
     status.textContent = `「${speakerRoleLabels[select.value] || select.value}」をこの会話の役割に設定しました。まだ保存されていません`;
-    renderSpeakerInsights(metrics);
+
   };
   select.addEventListener('change', applyRole);
   button.addEventListener('click', applyRole);
@@ -150,60 +150,6 @@ function conversationRoleControl(profile, label, metrics, index) {
   return container;
 }
 
-function renderSpeakerInsights(metrics) {
-  const container = document.querySelector('#speaker-insights');
-  if (!container) return;
-  container.replaceChildren();
-  const profiles = Object.values(currentJob.speaker_profiles || {});
-  const sessionType = (currentJob.session_profile || {}).session_type
-    || (document.querySelector('#session-type') || {}).value
-    || 'focus_group';
-  const add = (text, level = '') => {
-    const chip = document.createElement('span');
-    chip.className = `speaker-insight${level ? ` ${level}` : ''}`;
-    chip.textContent = text;
-    container.append(chip);
-  };
-  add(`話者 ${profiles.length}人`);
-  const uncertainRoleCount = profiles.filter(profile => !['explicit', 'registry'].includes(profile.session_role_source)).length;
-  const provisional = uncertainRoleCount > 0;
-  if (provisional) add(`役割未設定・記録元不明 ${uncertainRoleCount}人（役割別人数は仮集計）`, 'warning');
-  if (!Object.keys(metrics).length) add('発話なし');
-  if (sessionType === 'focus_group') {
-    const participants = profiles.filter(profile => profile.session_role === 'participant');
-    const moderators = profiles.filter(profile => ['moderator', 'facilitator', 'assistant_moderator'].includes(profile.session_role));
-    const observers = profiles.filter(profile => ['observer', 'note_taker'].includes(profile.session_role));
-    add(`参加者${provisional ? '（仮）' : ''} ${participants.length}人`, !provisional && participants.length >= 6 && participants.length <= 8 ? '' : 'warning');
-    add(provisional ? `司会・進行（仮） ${moderators.length}人` : moderatorCountText(moderators.length), provisional ? 'warning' : moderators.length ? '' : 'error');
-    add(`観察・記録${provisional ? '（仮）' : ''} ${observers.length}人`, observers.length ? '' : 'warning');
-    const participantTimeMissing = participants.some(profile => (metrics[profile.speaker_label]?.missingTimeCount || 0) > 0);
-    const participantSeconds = participants.reduce((sum, profile) => (
-      sum + (metrics[profile.speaker_label]?.timedSeconds || 0)
-    ), 0);
-    const participantTurnCount = participants.reduce((sum, profile) => sum + (metrics[profile.speaker_label]?.count || 0), 0);
-    if (provisional) {
-      add('役割未設定・記録元不明の話者がいるため、参加者内の割合は判定できません', 'warning');
-    } else if (participants.length && !participantTurnCount) {
-      add('参加者の発話なし');
-    } else if (participantTimeMissing) {
-      add('参加者の時刻不明があるため、発言時間の割合は判定できません', 'warning');
-    } else if (participants.length && participantSeconds === 0) {
-      add('参加者の総時間が0秒のため、発言時間の割合は判定できません');
-    } else if (!Number.isFinite(participantSeconds)) {
-      add('参加者の総時間を算出できないため、発言時間の割合は判定できません', 'warning');
-    } else {
-      const dominant = participants.find(profile => (
-        participantSeconds > 0 && (metrics[profile.speaker_label]?.seconds || 0) / participantSeconds >= 0.5
-      ));
-      if (dominant) add(`${dominant.display_name || dominant.speaker_label} の発言が参加者内50%以上`, 'warning');
-    }
-  } else if (sessionType === 'meeting') {
-    const leaders = profiles.filter(profile => ['chair', 'facilitator', 'moderator'].includes(profile.session_role));
-    add(`進行・議長${provisional ? '（仮）' : ''} ${leaders.length}人`, leaders.length ? '' : 'warning');
-    const decisionMakers = profiles.filter(profile => profile.session_role === 'decision_maker');
-    if (decisionMakers.length) add(`意思決定者${provisional ? '（仮）' : ''} ${decisionMakers.length}人`);
-  }
-}
 
 function moderatorCountText(count) {
   return `司会・進行 ${count}人`;
@@ -273,7 +219,7 @@ function renderSpeakerEditor({focusSpeakerLabel = '', focusField = ''} = {}) {
   const labels = speakerLabels();
   const metrics = speakerMetrics();
   renderConversationParticipation(metrics);
-  renderSpeakerInsights(metrics);
+
   if (!labels.length) {
     const note = document.createElement('p');
     note.className = 'segment-empty';

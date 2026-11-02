@@ -64,13 +64,11 @@ class SpeakerRegistryHandler:
         snapshot: Callable[..., tuple[list[dict[str, Any]], int]],
         save_records_locked: Callable[..., tuple[list[dict[str, Any]], int]],
         database_connection: Callable[[], Any],
-        refresh_archive_index: Callable[[str], None],
         write_lock: Any,
     ) -> None:
         self._snapshot = snapshot
         self._save_records_locked = save_records_locked
         self._database_connection = database_connection
-        self._refresh_archive_index = refresh_archive_index
         self._write_lock = write_lock
 
     def list(self, *, include_inactive: bool = True) -> dict[str, Any]:
@@ -96,11 +94,4 @@ class SpeakerRegistryHandler:
                 expected_revision=expected_revision,
                 merge_by_participant_code=merge_by_participant_code,
             )
-            with self._database_connection() as connection:
-                items = connection.execute(
-                    "SELECT DISTINCT item_id FROM analysis_runs "
-                    "WHERE status='completed'"
-                ).fetchall()
-            for item in items:
-                self._refresh_archive_index(str(item[0]))
             return result

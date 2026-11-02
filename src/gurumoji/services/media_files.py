@@ -16,7 +16,6 @@ from werkzeug.utils import secure_filename
 
 from ..media_formats import ALLOWED_EXTENSIONS, VIDEO_EXTENSIONS
 from .durable_files import atomic_copy_file, sync_file_data, temporary_output_path
-from .word_cloud import write_word_cloud
 
 
 def media_kind(path: Path | None) -> str | None:
@@ -173,16 +172,6 @@ def make_media_files(
         seed = f"{source_path.resolve()}|{stat.st_size}|{stat.st_mtime_ns}"
         return thumbnail_directory() / f"{uuid.uuid5(uuid.NAMESPACE_URL, seed).hex}.jpg"
 
-    def generate_word_cloud_thumbnail(
-        item_id: str,
-        source_name: str,
-        segments: list[dict[str, Any]],
-    ) -> Path:
-        return write_word_cloud(
-            thumbnail_directory() / f"word_cloud_{item_id}.svg",
-            source_name,
-            segments,
-        )
 
     def generate_video_thumbnail(source_path: Path) -> Path:
         if not is_video_path(source_path):
@@ -231,6 +220,5 @@ def make_media_files(
         resolve_local_media_path,
         prepare_output_root,
         thumbnail_cache_path,
-        generate_word_cloud_thumbnail,
         generate_video_thumbnail,
     )

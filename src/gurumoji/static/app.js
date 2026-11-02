@@ -1,10 +1,8 @@
 const form = document.querySelector('#job-form');
 const libraryCard = document.querySelector('#library-card');
 const speakerRegistryCard = document.querySelector('#speaker-registry-card');
-const analysisCard = document.querySelector('#analysis-card');
-const analysisItemSelect = document.querySelector('#analysis-item-select');
-const analysisDesktopContent = document.querySelector('#analysis-desktop-content');
-const analysisMobileContent = document.querySelector('#analysis-mobile-content');
+
+
 const speakerRegistryBody = document.querySelector('#speaker-registry-body');
 const speakerRegistryList = document.querySelector('#speaker-registry-list');
 const speakerRegistrySaveButton = document.querySelector('#save-speakers-button');
@@ -25,20 +23,18 @@ const resultCard = document.querySelector('#result-card');
 const cancelButton = document.querySelector('#cancel-button');
 const saveButton = document.querySelector('#save-button');
 const newButton = document.querySelector('#new-button');
-const resultAnalysisButton = document.querySelector('#result-analysis-button');
+
 const resultContextButtons = [...document.querySelectorAll('[data-result-destination]')];
 const meetingMinutesView = document.querySelector('#meeting-minutes-view');
 const meetingCopyJsonButton = document.querySelector('#meeting-copy-json');
-const meetingObsidianSaveButton = document.querySelector('#meeting-obsidian-save');
-const meetingObsidianOpenLink = document.querySelector('#meeting-obsidian-open');
-const meetingObsidianStatus = document.querySelector('#meeting-obsidian-status');
+
+
 const deleteRecordButton = document.querySelector('#delete-record-button');
 const boostQuietSpeech = document.querySelector('#boost-quiet-speech');
 const triplePass = document.querySelector('#triple-pass');
 const vadOnset = document.querySelector('#vad-onset');
 const vadOffset = document.querySelector('#vad-offset');
-const emotionAnalysis = document.querySelector('#emotion-analysis');
-const emotionModel = document.querySelector('#emotion-model');
+
 const aiProvider = document.querySelector('#ai-provider');
 const modelName = document.querySelector('#model-name');
 const transcriptionBackend = document.querySelector('#transcription-backend');
@@ -79,7 +75,7 @@ const mobileWizardMedia = window.matchMedia('(max-width: 959px)');
 const cleanTranscript = document.querySelector('#clean-transcript');
 const detectNames = document.querySelector('#detect-names');
 const createOutline = document.querySelector('#create-outline');
-const finishInObsidian = document.querySelector('#finish-in-obsidian');
+
 const jevCompare = document.querySelector('#jev-compare');
 const transcriptFinishingModeInputs = [...document.querySelectorAll('input[name="transcript_finishing_mode"]')];
 const finishingModeHint = document.querySelector('#finishing-mode-hint');
@@ -88,10 +84,10 @@ const speakerIdentityProvider = document.querySelector('#speaker-identity-provid
 const rerunSpeakerIdentificationButton = document.querySelector('#rerun-speaker-identification');
 const speakerIdentityStatus = document.querySelector('#speaker-identity-status');
 const showLibraryButton = document.querySelector('#show-library-button');
-const showAnalysisButton = document.querySelector('#show-analysis-button');
+
 const processedDataHub = document.querySelector('#processed-data-hub');
 const showLibraryListButton = document.querySelector('#show-library-list-button');
-const showLibraryAnalysisButton = document.querySelector('#show-library-analysis-button');
+
 const showNewButton = document.querySelector('#show-new-button');
 const showSpeakersButton = document.querySelector('#show-speakers-button');
 const priorDataPanels = [...document.querySelectorAll('[data-prior-panel]')];
@@ -155,7 +151,7 @@ let sourceThumbnailObjectUrl = null;
 let jobRunning = false;
 let currentJobDirty = false;
 let currentJobMutationGeneration = 0;
-let meetingObsidianStatusGeneration = 0;
+
 let currentMobileStep = 1;
 let customVocabularyTouched = false;
 let customVocabularyMutationGeneration = 0;
@@ -167,48 +163,16 @@ let speakerRegistryRevision = 0;
 let speakerRegistryDirty = false;
 let speakerRegistryMutationGeneration = 0;
 let speakerRegistrySaveInProgress = false;
-let speakerSurveyAnalysisTimer = null;
-const speakerSurveyAnalysisState = {
-  primaryQuestion: '',
-  secondaryQuestion: '',
-  answerFilter: '',
-  includeInactive: false
-};
+
+
 let libraryRequestController = null;
 let libraryRequestSequence = 0;
 let libraryPageOffset = 0;
 let libraryPageFilter = '';
 let libraryGroups = [];
 let trainingStatusLoaded = false;
-let analysisCatalogLoaded = false;
-let analysisCatalog = [];
-let analysisRequestController = null;
-let analysisRequestSequence = 0;
-let analysisSaveInProgress = false;
-let analysisSaveOwner = null;
-const segmentClassificationRequests = new Map();
-let analysisNavigationGeneration = 0;
 
-let analysisMutationGeneration = 0;
-let analysisInitialSectionApplied = false;
-let analysisNavigationFrame = 0;
-let analysisTermRunRequested = false;
-const analysisState = {
-  itemId: '',
-  mode: 'automatic',
-  data: null,
-  config: {},
-  annotations: {},
-  dirty: false,
-  segmentQuery: '',
-  annotatedOnly: false,
-  automaticScope: 'overall',
-  automaticPage: 'overview',
-  speakerSort: 'speaking_desc',
-  speakerAttributeFilter: '',
-  selectedSpeaker: '',
-  methods: null
-};
+
 const dialogueActLabels = {
   question: '質問・問題提起', answer: '回答・説明', proposal: '提案・選択肢',
   request: '依頼・要望', confirmation: '確認', agreement: '同意・賛同',
@@ -338,12 +302,10 @@ const seenNoticeStorageKey = 'gurumoji.seenCreateNotices';
 
 // ---- Screens and routes (UX-01). Each screen owns one hash so reloads, the
 // browser's back button and bookmarks return to the same place. ----
-const viewRouteHashes = {new: '#/new', library: '#/data', analysis: '#/analysis', speakers: '#/speakers',
+
+const viewRouteHashes = {new: '#/new', library: '#/data', speakers: '#/speakers',
   presets: '#/presets', folders: '#/folders', catalog: '#/catalog', internal: '#/internal'};
 
-// 分析は公開準備中のため、実行データを読み込まない。
-const ANALYSIS_COMING_SOON = document.documentElement.dataset.analysisEnabled !== 'true';
-if (analysisCard) analysisCard.classList.toggle('is-coming-soon', ANALYSIS_COMING_SOON);
 
 // Every move between screens passes these checks, so unsaved edits are never
 // dropped without asking (UX-30).
@@ -353,9 +315,9 @@ if (analysisCard) analysisCard.classList.toggle('is-coming-soon', ANALYSIS_COMIN
 // The header chip is the only job indicator outside the create screen (UX-16).
 
 listen(showLibraryButton, 'click', () => showView('library'));
-listen(showAnalysisButton, 'click', () => showView('analysis'));
+
 listen(showLibraryListButton, 'click', () => showView('library'));
-listen(showLibraryAnalysisButton, 'click', () => showView('analysis'));
+
 listen(showNewButton, 'click', () => showView('new'));
 listen(showSpeakersButton, 'click', () => showView('speakers'));
 priorDataButtons.forEach(button => listen(button, 'click', () => showView(button.dataset.priorView)));
@@ -399,16 +361,7 @@ listen(document.querySelector('#connection-button'), 'click', () => {
     connectionDialog.showModal();
   }
 });
-listen(document.querySelector('#analysis-open-item-button'), 'click', () => {
-  const itemId = analysisState.itemId;
-  if (!itemId) return;
-  if (currentJob && String(currentJob.id) === String(itemId)) {
-    showView('item', {itemId});
-    return;
-  }
-  if (!confirmLeave({target: 'item', itemId})) return;
-  openLibraryItem(itemId);
-});
+
 
 // Tablists follow the WAI-ARIA tabs pattern (UX-23): one Tab stop per list on the
 // selected tab, and arrow/Home/End keys move focus between tabs. Activation stays
@@ -428,7 +381,7 @@ new MutationObserver(syncTabStops).observe(document.body, {subtree: true, attrib
 syncTabStops();
 
 window.addEventListener('beforeunload', event => {
-  if (!currentJobDirty && !speakerRegistryDirty && !analysisState.dirty && !preparationDirty) return;
+  if (!currentJobDirty && !speakerRegistryDirty) return;
   event.preventDefault();
   event.returnValue = '';
 });
@@ -691,19 +644,13 @@ listen(triplePass, 'change', () => {
   syncQuietFields();
   updateCreateSummary();
 });
-listen(emotionAnalysis, 'change', () => {
-  syncEmotionFields();
-  updateCreateSummary();
-});
+
 listen(aiProvider, 'change', () => {
   aiProviderManuallySelected = true;
   selectDefaultAiOptions();
 });
 
-listen(finishInObsidian, 'change', () => {
-  syncFinishingMode();
-  updateCreateSummary();
-});
+
 applyTranscriptFinishingPreset();
 syncFinishingMode();
 transcriptFinishingModeInputs.forEach(input => listen(input, 'change', () => {
@@ -727,7 +674,7 @@ listen(jevCompare, 'change', () => {
   updateCreateSummary();
 });
 applyConversationMode();
-syncEmotionFields();
+
 syncAiFields();
 syncTranscriptionBackend();
 updateCreateSummary();
@@ -1010,28 +957,6 @@ listen(meetingCopyJsonButton, 'click', async () => {
   }
 });
 
-listen(meetingObsidianSaveButton, 'click', async () => {
-  if (!currentJobId || !currentJob?.meeting_minutes) return;
-  if (currentJobDirty) {
-    applyMeetingObsidianStatus({status: 'error', message: '編集内容をアプリへ保存してから、Obsidianへ保存してください。'});
-    return;
-  }
-  const itemId = currentJobId;
-  meetingObsidianSaveButton.disabled = true;
-  meetingObsidianSaveButton.textContent = 'Obsidianへ保存中…';
-  try {
-    const response = await apiFetch(`/api/library/${encodeURIComponent(itemId)}/meeting-obsidian`, {method: 'POST'});
-    const data = await readJsonResponse(response);
-    if (!response.ok) throw new Error(data.error || '会議議事録をObsidianへ保存できませんでした。');
-    if (currentJobId !== itemId) return;
-    applyMeetingObsidianStatus(data);
-    setAlert(document.querySelector('#save-message'), '会議議事録と連携ファイルをObsidianに保存しました。', false);
-  } catch (error) {
-    if (currentJobId === itemId) applyMeetingObsidianStatus({status: 'error', message: error.message});
-  } finally {
-    meetingObsidianSaveButton.disabled = false;
-  }
-});
 
 // The planned agenda next to one time-ordered account of what was discussed.
 // Titles come from the AI agenda where it exists; the rest is named by theme.
@@ -1056,7 +981,6 @@ let activePlaybackSegmentId = null;
 });
 listen(document.querySelector('#session-type'), 'change', () => {
   captureSessionProfile();
-  if (currentJob) renderSpeakerInsights(speakerMetrics());
   setCurrentJobDirty();
 });
 
@@ -1105,37 +1029,6 @@ listen(document.querySelector('#replay-segment-button'), 'click', () => {
   else if (first) playSegment(first.id);
 });
 
-listen(document.querySelector('#obsidian-finishing-button'), 'click', async () => {
-  if (!currentJobId || !currentJob) return;
-  const message = document.querySelector('#save-message');
-  if (currentJobDirty) {
-    setAlert(message, '編集内容を保存してからObsidianの作業ノートを開いてください。', true);
-    return;
-  }
-  const button = document.querySelector('#obsidian-finishing-button');
-  button.disabled = true;
-  try {
-    const response = await apiFetch(`/api/library/${encodeURIComponent(currentJobId)}/obsidian-finishing`, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        provider: aiProvider ? aiProvider.value : 'none',
-        ai_efforts: readAiEfforts(),
-        jev_compare: Boolean(jevCompare && jevCompare.checked)
-      })
-    });
-    const data = await readJsonResponse(response);
-    if (!response.ok) throw new Error(data.error || '作業ノートを開けませんでした。');
-    setAlert(message, 'Gurumoji実行環境に作業ノートを用意しました。リンクは閲覧端末のObsidianで開きます。同じVaultへアクセスできる端末で利用してください。開けない場合は『ファイル・管理』から出力をダウンロードできます。Gurumojiは起動したままにしてください。 ');
-    const link = document.createElement('a');
-    link.href = data.uri;
-    link.textContent = 'Obsidianで操作ノートを開く';
-    message.append(link);
-  } catch (error) {
-    setAlert(message, error.message, true);
-  } finally {
-    button.disabled = false;
-  }
-});
 
 listen(saveButton, 'click', async () => {
   if (!currentJobId || !currentJob || saveButton.disabled) return;
@@ -1212,22 +1105,14 @@ listen(deleteRecordButton, 'click', () => {
 resultContextButtons.forEach(button => {
   listen(button, 'click', () => openResultDestination(button.dataset.resultDestination));
 });
-listen(resultAnalysisButton, 'click', () => openAnalysisForItem(currentJobId));
-listen(document.querySelector('#return-to-analysis-evidence'), 'click', returnToAnalysisEvidence);
+
+
 listen(newButton, 'click', () => showView('library'));
 
-// Shared analysis charts and navigation are in analysis-visualizations.js.
-
-// Method-specific analysis rendering is in analysis-method-view.js.
-
-let preparationDraft = null;
-let preparationDirty = false;
-let preparationSaving = false;
 
 const requestedParameters = new URLSearchParams(window.location.search);
 const requestedSectionValue = requestedParameters.get('section');
-const requestedAnalysisSection = ['overview', 'content', 'conversation', 'language', 'statistics', 'exports'].includes(requestedSectionValue)
-  ? requestedSectionValue : '';
+
 
 // `?view=` and `?item=` links (Vault links, older bookmarks) still work: they
 // resolve to the matching hash route on first load.

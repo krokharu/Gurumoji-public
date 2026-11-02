@@ -27,7 +27,7 @@ from .meeting_minutes import (
     meeting_tasks_csv_text,
     normalize_meeting_minutes,
 )
-from .emotion import emotion_segments_for_output, segment_emotion_display
+from .emotion_metadata import segment_emotion_display
 from .transcription.segments import default_speaker_name, display_time, srt_time
 
 SPEAKER_THEME_COLORS = (
@@ -499,11 +499,8 @@ def write_outputs(
     meeting_minutes: dict[str, Any] | None = None,
     check_cancelled: Callable[[], None] | None = None,
     formatting_result: dict[str, Any] | None = None,
-    write_word_cloud_file: bool = False,
     *,
     session_profile: dict[str, Any] | None = None,
-    write_word_cloud: Callable[[Path, str, list[dict[str, Any]]], Path],
-    emotion_csv_text: Callable[[list[dict[str, Any]], dict[str, str]], str],
 ) -> list[Path]:
     # Keep direct callers using the previous positional final callback working.
     if check_cancelled is None and callable(meeting_minutes):
@@ -583,12 +580,6 @@ def write_outputs(
     write_text(text_path, "\n".join(lines))
     written.append(text_path)
 
-    if write_word_cloud_file:
-        word_cloud_path = output_dir / f"{stem}_ワードクラウド.svg"
-        check()
-        write_word_cloud(word_cloud_path, source_name, segments)
-        check()
-        written.append(word_cloud_path)
 
     if write_srt:
         srt_path = output_dir / f"{stem}_話者分離.srt"
@@ -621,24 +612,5 @@ def write_outputs(
             json.dumps(meeting_external_payload(source_name, normalized_minutes), ensure_ascii=False, indent=2),
         )
         written.append(external_json_path)
-    if emotion_analysis:
-        emotion_payload = {
-            "source": source_name,
-            "language": language,
-            "speaker_names": speaker_names,
-            **emotion_analysis,
-            "segments": emotion_segments_for_output(segments, speaker_names),
-        }
-        emotion_json_path = output_dir / f"{stem}_感情分析.json"
-        write_text(
-            emotion_json_path,
-            json.dumps(emotion_payload, ensure_ascii=False, indent=2),
-        )
-        written.append(emotion_json_path)
-        csv_body = emotion_csv_text(segments, speaker_names)
-        if csv_body.count("\n") > 1:
-            emotion_csv_path = output_dir / f"{stem}_感情分析.csv"
-            write_text(emotion_csv_path, csv_body, encoding="utf-8-sig")
-            written.append(emotion_csv_path)
     check()
     return written

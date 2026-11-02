@@ -14,7 +14,7 @@ from ..services.ai.settings import (
 )
 from ..services.speaker_identification import apply_speaker_identity_repairs
 from ..text_utils import clean_single_line, json_load, utc_now_iso
-from .analysis_commands import TranscriptConflictError
+from .transcript_errors import TranscriptConflictError
 from .speaker_registry import SpeakerIdentificationRequestError
 
 
@@ -30,8 +30,6 @@ def make_library_speaker_identification(
     load_token_config: Any,
     merge_ai_usage: Any,
     public_diagnostic_text: Any,
-    publish_input_vault: Any,
-    refresh_archive_index: Any,
     register_detected_speakers: Any,
     row_segments: Any,
     row_session_profile: Any,
@@ -168,8 +166,6 @@ def make_library_speaker_identification(
                         record_training=False,
                     )
                     # Same follow-up as an ordinary edit: stale analyses and the Input ledger.
-                    refresh_archive_index(item_id)
-                    publish_input_vault(library_row(item_id))
                 else:
                     with database_connection() as connection:
                         connection.execute(

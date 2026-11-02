@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .. import transcript_preparation as preparation
-from ..handlers.analysis_commands import TranscriptConflictError
+from ..handlers.transcript_errors import TranscriptConflictError
 from ..text_utils import clean_outline_refs, json_load, utc_now_iso, validate_json_value
 from .durable_files import path_is_within
 from . import media_assets
-from .group_analysis import analysis_segment_bounds
+from .transcript_shared import validated_segment_bounds
 from .library_rows import (
     emotion_values,
     ensure_segment_ids,
@@ -82,7 +82,7 @@ def make_library_store(
             and media_path.is_file()
         )
         # Shared, read-only timing bounds: malformed one-record input cannot break the list.
-        timing = [analysis_segment_bounds(segment) for segment in segments]
+        timing = [validated_segment_bounds(segment) for segment in segments]
         timed_ends = [end for _start, end, valid in timing if valid]
         result: dict[str, Any] = {
             "id": row["id"],
@@ -98,10 +98,6 @@ def make_library_store(
             "speakers": speakers,
             "emotions": emotions,
             "preview": " ".join(str(item.get("text", "")).strip() for item in segments[:3]).strip()[:240],
-            "thumbnail_url": (
-                f"/api/library/{row['id']}/thumbnail?v="
-                f"{urllib.parse.quote(str(row['updated_at']))}"
-            ),
             "media_url": f"/api/library/{row['id']}/media" if media_available else None,
             "media_kind": media_kind(media_path) if media_available else None,
             "created_at": row["created_at"],
@@ -111,8 +107,6 @@ def make_library_store(
             "analysis_updated_at": row["analysis_updated_at"],
             "match_count": match_count,
             "speaker_data_url": f"/api/library/{row['id']}/speakers.csv",
-            "analysis_url": f"/api/library/{row['id']}/analysis",
-            "analysis_export_url": f"/api/library/{row['id']}/analysis/export.json",
             # The key is only a matching token.  A guide-derived key never exposes
             # the guide text to the list API.
             "comparison_key": comparison_key,

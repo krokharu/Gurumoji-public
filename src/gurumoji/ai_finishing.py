@@ -6,7 +6,7 @@ import json
 import unicodedata
 from typing import Callable
 
-from .analysis_insights import bounded_batches
+from .services.transcript_shared import bounded_batches
 from .text_utils import strip_segment_refs
 
 FINISHING_VERSION = "ai-finishing-4"

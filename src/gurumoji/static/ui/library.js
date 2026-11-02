@@ -247,22 +247,14 @@ function renderLibraryItems(items) {
     card.className = 'library-item';
     const media = document.createElement('div');
     media.className = 'library-media';
-    const thumbnail = document.createElement('img');
-    thumbnail.className = 'library-thumbnail';
-    thumbnail.src = item.thumbnail_url;
-    thumbnail.alt = `${item.source_name} のワードクラウド`;
-    thumbnail.loading = 'lazy';
     const mediaFallback = document.createElement('span');
     mediaFallback.className = 'library-media-fallback';
     mediaFallback.textContent = 'プレビューなし';
     const mediaBadge = document.createElement('span');
     mediaBadge.className = 'library-media-badge';
     mediaBadge.textContent = item.media_url ? (item.media_kind === 'video' ? '動画' : '音声') : 'テキスト';
-    thumbnail.addEventListener('error', () => {
-      media.classList.add('unavailable');
-      thumbnail.remove();
-    });
-    media.append(thumbnail, mediaFallback, mediaBadge);
+    media.classList.add("unavailable");
+    media.append(mediaFallback, mediaBadge);
     const body = document.createElement('div');
     body.className = 'library-item-body';
     const heading = document.createElement('div');
@@ -280,7 +272,7 @@ function renderLibraryItems(items) {
       `発話 ${item.segment_count}件`,
       `収録日 ${item.media_created_at ? String(item.media_created_at).slice(0, 10) : '不明'}`,
       `メディア ${item.media_duration_seconds == null ? '不明' : item.media_duration_seconds < 1 ? `${item.media_duration_seconds}秒` : formatTime(item.media_duration_seconds)}`,
-      `最終時刻 ${analysisEndpointText(item.duration, item.timed_turn_count, item.missing_time_turn_count)}`,
+      `最終時刻 ${transcriptEndpointText(item.duration, item.timed_turn_count, item.missing_time_turn_count)}`,
       mediaLabel,
       `修正 ${item.revision_count}回`
     ].forEach(value => {
@@ -343,19 +335,15 @@ function renderLibraryItems(items) {
     open.type = 'button';
     open.setAttribute('aria-label', `${item.source_name}を開いて編集`);
     open.addEventListener('click', () => openLibraryItem(item.id));
-    const analyze = document.createElement('button');
-    analyze.className = 'library-analysis-button';
-    analyze.type = 'button';
-    analyze.textContent = '分析・可視化';
-    analyze.setAttribute('aria-label', `${item.source_name}を分析・可視化`);
-    analyze.addEventListener('click', () => openAnalysisForItem(item.id));
+
+
     const remove = document.createElement('button');
     remove.className = 'library-delete-button';
     remove.type = 'button';
     remove.textContent = '削除';
     remove.setAttribute('aria-label', `${item.source_name}を削除`);
     remove.addEventListener('click', () => deleteLibraryItem(item.id, item.source_name));
-    actions.append(groupLabel, analyze, remove);
+    actions.append(groupLabel, remove);
     card.append(open, media, body, actions);
     list.append(card);
   });
@@ -514,15 +502,8 @@ async function deleteLibraryItem(itemId, name) {
       storeActiveJobId('');
       setCurrentJobDirty(false);
     }
-    analysisCatalogLoaded = false;
-    analysisCatalog = [];
-    if (analysisState.itemId === itemId) {
-      analysisState.itemId = '';
-      analysisState.data = null;
-      analysisState.config = {};
-      analysisState.annotations = {};
-      setAnalysisDirty(false);
-    }
+
+
     showView('library');
     await loadLibrary();
     const cleanupWarning = data.cleanup_warning || '';

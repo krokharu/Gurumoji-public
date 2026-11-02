@@ -6,7 +6,7 @@
 
 | 場所 | 内容 |
 | --- | --- |
-| `runtime/data/` | SQLite、取り込んだメディア、分析結果、Obsidian Vault、台帳など |
+| `runtime/data/` | SQLite、取り込んだメディア、登録語など。旧版の結果やVaultも保持 |
 | `runtime/output/` | 文字起こしの書き出し |
 | `runtime/models/` | ダウンロードしたモデル |
 | `runtime/uploads/` | アップロードの一時ファイル |
@@ -19,7 +19,7 @@
 ## 外部通信
 
 - 初回導入やモデル取得では、Pythonパッケージやモデルの配布元へ接続します。
-- 外部AIによる仕上げ・分析等を有効にすると、処理対象の文章や必要な文脈が選択した接続先へ送信されます。OpenAI・Google・TypeSafe等の利用条件や料金は、それぞれの提供元と設定で確認してください。
+- 外部AIによる仕上げ等を有効にすると、処理対象の文章や必要な文脈が選択した接続先へ送信されます。OpenAI・Google・TypeSafe等の利用条件や料金は、それぞれの提供元と設定で確認してください。
 - LM Studio等を利用する場合も、実際の接続先URLと機能ごとの設定を確認してください。アプリ内で選択したすべての処理が同じ接続先を使用するとは限りません。
 - Colab版では録音や処理データをGoogleのランタイムへ取り込みます。Google Drive保存を選んだ場合は、指定したDrive内へ保持します。
 
@@ -34,7 +34,7 @@
 .venv\Scripts\python.exe scripts/backup_data.py verify "<バックアップフォルダー>"
 ```
 
-通常の対象はライブラリDB、固定分析結果、Obsidian Vaultと管理情報、仕上げ用の作業台、登録語です。元の音声・動画と学習用音声を含める場合は、次を実行します。
+通常の対象はライブラリDBと登録語です。旧版の固定分析結果・Obsidian Vault・管理情報・作業台が存在する場合は、それらも互換対象としてバックアップします。元の音声・動画と学習用音声を含める場合は、次を実行します。
 
 ```powershell
 .venv\Scripts\python.exe scripts/backup_data.py create --include-media

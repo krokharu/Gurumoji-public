@@ -32,7 +32,6 @@ def register_system_routes(
     available_ai_models: Callable[[str, Any], list[dict[str, Any]]],
     update_token_model: Callable[[Any, Any, Path], Any],
     system_activity_snapshot: Callable[[], dict[str, Any]],
-    obsidian_watcher_status: Callable[[], dict[str, Any]] = lambda: {},
     create_backup: Callable[[bool], dict[str, Any]] | None = None,
     library_diagnostics: Callable[[], dict[str, Any]] = lambda: {},
     media_metadata_status: Callable[[], dict[str, Any]] = lambda: {},
@@ -50,12 +49,6 @@ def register_system_routes(
             local_llm_short_label=local_llm_short_label(),
         )
 
-    def watcher_public() -> dict[str, Any]:
-        status = dict(obsidian_watcher_status())
-        if not local_path_access_allowed():
-            # Exception text can name local paths; remote viewers get the summary only.
-            status.pop("detail", None)
-        return status
 
     def api_config():
         machine = get_machine_profile()
@@ -71,7 +64,6 @@ def register_system_routes(
                 "machine": machine,
                 "transcription_readiness": transcription_readiness(),
                 "runtime": runtime_info(),
-                "obsidian_watcher": watcher_public(),
             })
         except RuntimeError as exc:
             return jsonify({
@@ -80,7 +72,6 @@ def register_system_routes(
                 "token_file": token_file().name,
                 "machine": machine,
                 "runtime": runtime_info(),
-                "obsidian_watcher": watcher_public(),
             }), 500
 
     def api_custom_vocabulary():

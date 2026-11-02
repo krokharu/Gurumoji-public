@@ -33,7 +33,6 @@ flatbuffers==25.12.19
 fonttools==4.66.1
 frozenlist==1.8.0
 fsspec==2026.7.0
-ginza==5.2.0
 googleapis-common-protos==1.75.5
 grpcio==1.84.0
 h11==0.16.0
@@ -44,7 +43,6 @@ huggingface_hub==0.36.2
 idna==3.20
 imageio-ffmpeg==0.6.0
 itsdangerous==2.2.0
-ja-ginza==5.2.0
 Jinja2==3.1.6
 joblib==1.6.0
 julius==0.2.8
@@ -70,7 +68,6 @@ numpy==2.2.6
 omegaconf==2.3.1
 onnxruntime==1.30.0
 openai-whisper==20250625
-openpyxl==3.1.5
 opentelemetry-api==1.45.0
 opentelemetry-exporter-http-transport==0.66b0
 opentelemetry-exporter-otlp==1.45.0
@@ -103,7 +100,6 @@ Pygments==2.21.0
 pyparsing==3.3.3
 pypdf==6.19.0
 python-dateutil==2.9.0.post0
-python-pptx==1.0.2
 pytorch-lightning==2.6.6
 pytorch-metric-learning==2.9.0
 PyYAML==6.0.3
@@ -118,9 +114,6 @@ shellingham==1.5.4
 six==1.17.0
 smart_open==8.0.2
 sortedcontainers==2.4.0
-spacy==3.8.16
-spacy-legacy==3.0.12
-spacy-loggers==1.0.5
 SQLAlchemy==2.1.2
 srsly==2.5.4
 SudachiDict-core==20260723

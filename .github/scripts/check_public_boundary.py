@@ -25,6 +25,18 @@ SECRET_PATTERNS = {
     "個人の絶対パス": re.compile(r"(?:[A-Za-z]:[\\/]+Users[\\/]+[^\s\x22\x27<>]+|/[h]ome/[^/\s\x22\x27]+/[^\s\x22\x27]*)"),
 }
 
+# 既に公開された履歴は保持し、現在版への解析実装の再混入を防ぐ。
+EXCLUDED_FEATURE_PATHS = re.compile(
+    r"^(?:src/gurumoji/(?:analysis_[^/]+\.py|research_analysis\.py|"
+    r"transformer_analysis\.py|method_experts\.py|orchestration_initial\.py|"
+    r"segment_classification\.py|knowledge_builder/|"
+    r"(?:services|handlers|web)/analysis_[^/]+\.py|"
+    r"static/(?:analysis[^/]*|ui/analysis[^/]*)|templates/views/analysis[^/]*)|"
+    r"src/(?:analysis_insights|analysis_store|research_analysis|transformer_analysis)\.py|"
+    r"config/(?:analysis_slide_templates\.json|requirements-emotion\.txt)|"
+    r"scripts/(?:manage_expert_knowledge\.py|setup_emotion\.bat|bootstrap_s3prl\.py))"
+)
+
 
 def git(*args: str) -> bytes:
     return subprocess.check_output(["git", "-c", "core.quotePath=false", *args])
@@ -33,6 +45,10 @@ def git(*args: str) -> bytes:
 def main() -> int:
     records = git("rev-list", "--objects", "HEAD").decode("utf-8").splitlines()
     errors: set[str] = set()
+    current_paths = git("ls-tree", "-r", "--name-only", "HEAD").decode("utf-8").splitlines()
+    for name in current_paths:
+        if EXCLUDED_FEATURE_PATHS.search(name):
+            errors.add(f"公開版から削除した機能の再混入: {name}")
     blob_count = 0
     process = subprocess.Popen(["git", "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     assert process.stdin is not None and process.stdout is not None

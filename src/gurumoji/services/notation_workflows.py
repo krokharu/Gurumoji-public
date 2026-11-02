@@ -188,11 +188,6 @@ class NotationWorkflows:
                     "process_version": notation.NOTATION_VERSION,
                     "metadata": {"run_id": run_id, "provider": provider, "model": preview["model"],
                                  "notation": resolved["notation"]}}])
-            try:
-                self.d.archive_ai_finishing(self.d.library_row(item_id), segments, {"notation": "completed"},
-                                           provider, preview["model"], usage, request_id=run_id)
-            except (OSError, ValueError, TypeError, sqlite3.Error):
-                result["notation_archive_warning"] = "本文と差分は保存済みです。分析履歴の書き出しは未完了です。"
         return result
 
     def review(self, item_id):

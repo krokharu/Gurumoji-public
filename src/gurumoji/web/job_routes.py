@@ -8,7 +8,7 @@ from typing import Callable
 
 from flask import Flask, g, jsonify, request, send_file
 
-from ..handlers.analysis_commands import TranscriptConflictError
+from ..handlers.transcript_errors import TranscriptConflictError
 from ..handlers.jobs import JobHandler, JobRequestError
 
 

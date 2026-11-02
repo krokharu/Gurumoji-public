@@ -133,7 +133,7 @@ async function loadConfig() {
     tokenConfigSnapshot = data && typeof data === 'object' ? data : {};
     configLoadState = 'loaded';
     applyMachineProfile(data.machine);
-    applyObsidianWatcherStatus(data.obsidian_watcher);
+
     const runtime = data.runtime || {};
     browserFilePickerOnly = Boolean(runtime.browser_upload);
     if (browsePathButton) {
@@ -199,21 +199,6 @@ async function loadConfig() {
   }
 }
 
-function applyObsidianWatcherStatus(watcher) {
-  // OBS-09: a watcher that stopped at startup must not look like an idle one.
-  if (!watcher || typeof watcher !== 'object' || !watcher.state) return;
-  const failed = ['failed', 'polling_failed'].includes(watcher.state);
-  // OBS-10: a parent folder opened as a Vault mixes the app's notes into it.
-  const warnings = Array.isArray(watcher.warnings) ? watcher.warnings.filter(Boolean) : [];
-  document.querySelectorAll('[data-obsidian-watcher-pill]').forEach(pill => {
-    pill.classList.remove('loading', 'ready', 'missing');
-    pill.classList.add(watcher.state === 'running' && !warnings.length ? 'ready' : failed || warnings.length ? 'missing' : 'loading');
-    pill.textContent = watcher.state === 'running' ? 'Obsidian監視 ✓' : 'Obsidian監視';
-  });
-  document.querySelectorAll('[data-obsidian-watcher-detail]').forEach(detail => {
-    detail.textContent = [watcher.message, watcher.detail, ...warnings.map(text => `注意: ${text}`)].filter(Boolean).join(' ');
-  });
-}
 
 function applyLmStudioDefaults(config) {
   // A ready, explicitly selected local model is an opt-in.  Make the
@@ -328,7 +313,7 @@ function setRunning(running) {
   if (fixedSpeakerCountInput) fixedSpeakerCountInput.disabled = running || !isSpeakerCountFixed();
   if (cancelButton) cancelButton.disabled = !running;
   syncQuietFields();
-  syncEmotionFields();
+
   syncAiFields();
   updateCreateSummary();
   syncCreateViewState();
@@ -340,9 +325,6 @@ function syncQuietFields() {
   [vadOnset, vadOffset].forEach(input => { if (input) input.disabled = !enabled; });
 }
 
-function syncEmotionFields() {
-  if (emotionModel) emotionModel.disabled = !emotionAnalysis || emotionAnalysis.disabled || !emotionAnalysis.checked;
-}
 
 function syncAiFields() {
   if (!aiProvider) return;
@@ -377,7 +359,7 @@ function selectedTranscriptFinishingMode() {
 function applyTranscriptFinishingModeChange() {
   const mode = selectedTranscriptFinishingMode();
   if (mode === lastTranscriptFinishingMode) return;
-  const controls = [cleanTranscript, detectNames, createOutline, jevCompare, finishInObsidian];
+  const controls = [cleanTranscript, detectNames, createOutline, jevCompare];
   transcriptFinishingPreferences.set(lastTranscriptFinishingMode, controls.map(input => Boolean(input?.checked)));
   const saved = transcriptFinishingPreferences.get(mode);
   applyTranscriptFinishingPreset();
@@ -393,7 +375,6 @@ function applyTranscriptFinishingPreset() {
   if (createOutline) createOutline.checked = mode === 'advanced' && hasAi;
   // An additional external destination must be an explicit choice.
   if (jevCompare && (mode !== 'advanced' || !hasAi)) jevCompare.checked = false;
-  if (finishInObsidian && mode !== 'recommended') finishInObsidian.checked = false;
   document.querySelectorAll('[data-advanced-finishing-only]').forEach(row => {
     row.hidden = mode !== 'advanced';
   });
@@ -402,7 +383,7 @@ function applyTranscriptFinishingPreset() {
   });
   if (finishingModeHint) {
     finishingModeHint.textContent = {
-      recommended: 'AI仕上げを使う場合は、必要な箇所だけ読みやすく整えます。Obsidianに保存する場合は、あとで仕上げられます。',
+      recommended: 'AI仕上げを使う場合は、必要な箇所だけ読みやすく整えます。',
       advanced: '文章全体を見直します。話者の確認や比較など、追加の処理も選べます。',
       off: '文章は変更せず、認識結果をそのまま残します。'
     }[mode] || '';

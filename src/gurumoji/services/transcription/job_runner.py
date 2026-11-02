@@ -30,11 +30,9 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
     TRIPLE_PASS_MIN_GAP_SECONDS = dependencies["TRIPLE_PASS_MIN_GAP_SECONDS"]
     UPLOAD_DIRECTORY = dependencies["UPLOAD_DIRECTORY"]
     WHISPER_SAMPLE_RATE = dependencies["WHISPER_SAMPLE_RATE"]
-    aist_emotion_model_keys = dependencies["aist_emotion_model_keys"]
     apply_speaker_identity_repairs = dependencies["apply_speaker_identity_repairs"]
     attach_jev_comparison = dependencies["attach_jev_comparison"]
     audio_preprocess_label = dependencies["audio_preprocess_label"]
-    build_emotion_analysis_summary = dependencies["build_emotion_analysis_summary"]
     build_meeting_minutes = dependencies["build_meeting_minutes"]
     clean_recommended_segments_with_ai = dependencies["clean_recommended_segments_with_ai"]
     clean_segments_with_ai = dependencies["clean_segments_with_ai"]
@@ -60,17 +58,13 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
     normalize_asr_segments = dependencies["normalize_asr_segments"]
     normalize_conversation_speaker_profiles = dependencies["normalize_conversation_speaker_profiles"]
     normalize_meeting_minutes = dependencies["normalize_meeting_minutes"]
-    obsidian_workbench = dependencies["obsidian_workbench"]
     offset_asr_segments_to_gap = dependencies["offset_asr_segments_to_gap"]
     path_entry_exists = dependencies["path_entry_exists"]
-    publish_input_vault = dependencies["publish_input_vault"]
-    publish_meeting_minutes_to_obsidian = dependencies["publish_meeting_minutes_to_obsidian"]
     register_detected_speakers = dependencies["register_detected_speakers"]
     review_segments_with_jev = dependencies["review_segments_with_jev"]
     row_segments = dependencies["row_segments"]
     row_session_profile = dependencies["row_session_profile"]
     row_speaker_profiles = dependencies["row_speaker_profiles"]
-    run_aist_emotion_analysis = dependencies["run_aist_emotion_analysis"]
     run_audio_interval_preprocess = dependencies["run_audio_interval_preprocess"]
     run_audio_preprocess = dependencies["run_audio_preprocess"]
     run_diarization_audio_preprocess = dependencies["run_diarization_audio_preprocess"]
@@ -81,7 +75,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
     transcript_formatting_result = dependencies["transcript_formatting_result"]
     update_job = dependencies["update_job"]
     upsert_library_item = dependencies["upsert_library_item"]
-    whisper_vault_settings = dependencies["whisper_vault_settings"]
     whisper_vocabulary_prompt = dependencies["whisper_vocabulary_prompt"]
     write_outputs = dependencies["write_outputs"]
     write_subtitled_video_assets = dependencies["write_subtitled_video_assets"]
@@ -604,7 +597,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
         # Speaker identification uses the unedited transcript as a dedicated
         # source so text cleanup cannot remove or rewrite a self-introduction.
         speaker_identity_segments = [dict(item) for item in segments]
-        obsidian_prepared = False
         finishing_stages = {"outline_context": "not_requested", "cleanup": "not_requested",
                             "recommended_cleanup": "not_requested",
                             "jev_comparison": "not_requested",
@@ -635,7 +627,7 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
                if key != "notation" or level != "off"):
             ai_base_kwargs["ai_efforts"] = options.ai_efforts
         context_outline: dict[str, Any] | None = None
-        if (options.recommended_cleanup and not options.finish_in_obsidian
+        if (options.recommended_cleanup
                 and options.ai_efforts.get("cleanup", "medium") != "off"):
             try:
                 cleanup_effort = options.ai_efforts.get("cleanup", "medium")
@@ -684,7 +676,7 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
                 )
         full_cleanup = None
         if ((options.clean_transcript or options.jev_compare or options.ai_efforts.get("notation", "off") != "off")
-                and not options.finish_in_obsidian):
+               ):
             # The same order and stage record as the Obsidian workbench (ARCH-07).
             def create_context_outline(source: list[dict[str, Any]]) -> dict[str, Any]:
                 status("再校正に先立ち、会話全体のアウトラインを作成しています…")
@@ -769,35 +761,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
         set_stage("finishing", "文字起こしの仕上げ", 100)
         progress(88)
         emotion_analysis: dict[str, Any] | None = None
-        if options.emotion_analysis:
-            emotion_model_keys = aist_emotion_model_keys(options.emotion_model)
-            try:
-                set_stage("emotion", "音声感情の分析", 10)
-                # Emotion models depend on loudness dynamics that the
-                # transcription preprocessing deliberately flattens.
-                segments, emotion_analysis = run_aist_emotion_analysis(
-                    options.input_path,
-                    segments,
-                    options.emotion_model,
-                    options.hf_token,
-                    device,
-                    internal_work_dir / "emotion_work",
-                    status,
-                    check_cancelled,
-                )
-                status("AIST感情分析が完了しました。")
-            except InterruptedError:
-                raise
-            except Exception as exc:
-                details = "".join(traceback.format_exception_only(type(exc), exc)).strip()
-                record_warning("AIST感情分析は失敗しました。文字起こし処理は続行します: " + details)
-                emotion_analysis = build_emotion_analysis_summary(
-                    segments,
-                    emotion_model_keys,
-                    status="failed",
-                    error=details,
-                )
-            set_stage("emotion", "音声感情の分析", 100)
         progress(90)
         finishing_history.append({"segments": json.loads(json.dumps(segments, ensure_ascii=False)),
                                   "speaker_names": {}, "origin": "rule", "process": "emotion_projection"})
@@ -841,13 +804,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
                         f"ラベル統合発話 {speaker_repair_summary['aliased_segments']}件 / "
                         f"断裂修正 {speaker_repair_summary['corrected_segments']}件"
                     )
-                    if emotion_analysis is not None:
-                        emotion_analysis = build_emotion_analysis_summary(
-                            segments,
-                            aist_emotion_model_keys(options.emotion_model),
-                            status=str(emotion_analysis.get("status") or "completed"),
-                            error=str(emotion_analysis.get("error") or ""),
-                        )
                 check_cancelled()
             except InterruptedError:
                 raise
@@ -906,25 +862,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
                 "台帳に一致しない話者を、この会話のみの一時話者として登録しました: "
                 + "、".join(speaker_registration_summary["temporary"].values())
             )
-        if options.finish_in_obsidian:
-            try:
-                # Work notes are researcher-owned after their first creation.
-                # Create them only after the non-text-changing identity pass,
-                # so their headers already show names without overwriting a
-                # note a researcher may later edit.
-                obsidian_workbench().prepare(
-                    job.id, options.source_name, segments, revision=0,
-                    provider=options.ai_provider, model=options.ai_model,
-                    ai_efforts=options.ai_efforts,
-                    detect_names=options.detect_speaker_names or options.ai_provider == "none",
-                    create_outline=options.create_outline or options.ai_provider == "none",
-                    jev_compare=options.jev_compare, ready=False,
-                    speaker_names=speaker_names,
-                )
-                obsidian_prepared = True
-                status("Whisperの原文と会話全文をObsidianに保存しました。仕上げは操作ノートから実行できます。")
-            except (OSError, ValueError) as exc:
-                record_warning("Obsidianの作業ノートを保存できませんでした。処理完了後に「Obsidianで仕上げ」から再試行してください: " + str(exc))
         session_profile = session_profile_from_media(options.input_path, check_cancelled)
         session_profile["session_type"] = CONVERSATION_MODES.get(
             options.conversation_mode, "meeting"
@@ -936,7 +873,7 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
             )
         progress(94)
         outline: dict[str, Any] | None = None
-        if options.create_outline and not options.finish_in_obsidian:
+        if options.create_outline:
             try:
                 set_stage("outline", "議題アウトラインの作成", 10)
                 outline = create_outline_with_ai(
@@ -991,7 +928,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
             meeting_minutes,
             check_cancelled,
             formatting_result=formatting_result,
-            write_word_cloud_file=options.write_word_cloud,
             session_profile=session_profile,
         )
         check_cancelled()
@@ -1065,17 +1001,6 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
             meeting_minutes=meeting_minutes,
             formatting_result=formatting_result,
         )
-        publish_input_vault(persisted, whisper_vault_settings(options, language_code))
-        if obsidian_prepared:
-            try:
-                obsidian_workbench().activate(job.id, int(persisted["revision_count"] or 0), segments)
-            except (OSError, ValueError) as exc:
-                record_warning("原文は保存済みです。「Obsidianで仕上げ」から作業状態の更新を再試行してください: " + str(exc))
-            try:
-                publish_meeting_minutes_to_obsidian(persisted)
-            except (OSError, ValueError, TypeError, KeyError, sqlite3.Error) as exc:
-                # Transcript persistence is authoritative; a meeting note can be retried later.
-                record_warning("会議議事録のObsidian公開を後で再試行してください: " + str(exc))
         with jobs_lock:
             job.segments = row_segments(persisted)
             job.speaker_names = speaker_names
