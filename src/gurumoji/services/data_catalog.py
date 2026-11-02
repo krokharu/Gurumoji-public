@@ -359,14 +359,14 @@ def group_public(db, row) -> dict:
     return {**dict(row), "rule": json.loads(row["rule_json"]), "item_ids": ids, "item_count": len(ids)}
 
 
-def catalog(db) -> dict:
+def catalog(db, *, include_items: bool = True) -> dict:
     return {"definitions": definitions(db),
             "groups": [group_public(db, r) for r in db.execute("SELECT * FROM data_groups ORDER BY name,group_id")],
             "tags": [{**dict(r), "item_count": db.execute("SELECT count(*) FROM conversation_tags WHERE tag_id=?", (r["tag_id"],)).fetchone()[0]}
                      for r in db.execute("SELECT * FROM tags ORDER BY normalized_name")],
             "items": [{"id": r[0], "name": r[1], "attributes": attribute_values(db, r[0]),
                        "tag_ids": [v[0] for v in db.execute("SELECT tag_id FROM conversation_tags WHERE item_id=? ORDER BY tag_id", (r[0],))]}
-                      for r in db.execute("SELECT id,source_name FROM library_items ORDER BY source_name,id")]}
+                      for r in db.execute("SELECT id,source_name FROM library_items ORDER BY source_name,id")] if include_items else []}
 
 
 def freeze(db, item_ids, *, group_ids=None, group_by=None) -> dict:

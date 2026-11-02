@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import mimetypes
-import datetime
-import math
 import sqlite3
 import subprocess
 import uuid
@@ -16,11 +14,10 @@ from flask import Flask, jsonify, request, send_file
 from ..handlers.analysis_commands import ComparisonRequestError
 from ..services.durable_files import path_is_within
 from ..services.library_trash import TrashError
-from ..services.library_rows import emotion_values
 from ..services.media_files import media_kind
-from ..services.transcription.segments import default_speaker_name
 from ..text_utils import json_load
 from ..services import data_catalog
+from ..services.library_listing import list_library_items
 
 
 def register_library_routes(
@@ -121,154 +118,10 @@ def register_library_routes(
             return jsonify({"error": f"サムネイルを作成できません: {exc}"}), 500
 
     def list_library():
-        try:
-            page_limit = int(request.args.get('limit', 0))
-            page_offset = int(request.args.get('offset', 0))
-            if not 0 <= page_limit <= 200 or not 0 <= page_offset <= 2**63 - 1:
-                raise ValueError()
-        except (ValueError, OverflowError):
-            return jsonify(error='一覧のページ指定が正しくありません。'), 400
-        keyword = request.args.get("keyword", "").strip().casefold()
-        speaker_filter = request.args.get("speaker", "").strip().casefold()
-        emotion_filter = request.args.get("emotion", "").strip().casefold()
-        group_filter = request.args.get("group", "").strip()
-        sort_key = request.args.get("sort", "updated_desc").strip()
-        date_from = request.args.get("recorded_from", "").strip()
-        date_to = request.args.get("recorded_to", "").strip()
-        try:
-            duration_min = float(request.args["media_duration_min"]) if request.args.get("media_duration_min") else None
-            duration_max = float(request.args["media_duration_max"]) if request.args.get("media_duration_max") else None
-            for value in (duration_min, duration_max):
-                if value is not None and (not math.isfinite(value) or value < 0):
-                    raise ValueError
-            for value in (date_from, date_to):
-                if value:
-                    datetime.date.fromisoformat(value)
-            if date_from and date_to and date_from > date_to:
-                raise ValueError
-            if duration_min is not None and duration_max is not None and duration_min > duration_max:
-                raise ValueError
-        except ValueError:
-            return jsonify({"error": "収録日・メディアの長さの条件を確認してください。"}), 400
-        with database_connection() as connection:
-            catalog = data_catalog.catalog(connection)
-            selected_group = request.args.get('data_group', '')
-            selected_tag = request.args.get('tag', '')
-            try:
-                selected_members = set(data_catalog.members(connection, selected_group)) if selected_group else None
-            except LookupError as exc:
-                return jsonify(error=str(exc)), 404
-            catalog_items = {item['id']: item for item in catalog['items']}
-            rows = connection.execute("""SELECT i.*, m.duration_seconds AS media_duration_seconds,
-                m.media_created_at AS media_created_at FROM library_items i
-                LEFT JOIN media_assets m ON m.item_id=i.id AND m.role='stored'
-                ORDER BY i.updated_at DESC""").fetchall()
-            group_rows = connection.execute(
-                """
-                SELECT g.id, g.name, g.created_at, g.updated_at,
-                       COUNT(items.id) AS item_count
-                FROM library_groups AS g
-                LEFT JOIN library_items AS items ON items.group_id = g.id
-                GROUP BY g.id, g.name, g.created_at, g.updated_at
-                ORDER BY g.name COLLATE NOCASE, g.created_at
-                """
-            ).fetchall()
-
-        groups = [
-            {
-                "id": str(row["id"]),
-                "name": str(row["name"]),
-                "item_count": int(row["item_count"] or 0),
-                "created_at": row["created_at"],
-                "updated_at": row["updated_at"],
-            }
-            for row in group_rows
-        ]
-        group_names = {group["id"]: group["name"] for group in groups}
-
-        all_speakers: set[str] = set()
-        all_emotions: set[str] = set()
-        candidates: list[tuple[sqlite3.Row, int, list[dict[str, Any]], list[str], str, list[str]]] = []
-        for row in rows:
-            recording_date = str(row["media_created_at"] or "")[:10]
-            duration = row["media_duration_seconds"]
-            if (date_from or date_to) and (not recording_date or date_from and recording_date < date_from or date_to and recording_date > date_to):
-                continue
-            if (duration_min is not None or duration_max is not None) and (
-                duration is None or duration_min is not None and duration < duration_min or duration_max is not None and duration > duration_max
-            ):
-                continue
-            # Parsed once per row and without stable IDs, which the list does not show (PERF-01).
-            raw_segments = json_load(row["segments_json"], [])
-            segments = [item for item in raw_segments if isinstance(item, dict)] if isinstance(raw_segments, list) else []
-            names = json_load(row["speaker_names_json"], {})
-            if not isinstance(names, dict):
-                names = {}
-            speakers = sorted({
-                str(names.get(str(item.get("speaker") or "")) or default_speaker_name(item.get("speaker")))
-                for item in segments if item.get("speaker")
-            })
-            emotions = sorted({value for item in segments for value in emotion_values(item)})
-            all_speakers.update(speakers)
-            all_emotions.update(emotions)
-            searchable_segments = [str(item.get("text") or "") for item in segments]
-            match_count = sum(1 for text_value in searchable_segments if keyword and keyword in text_value.casefold())
-            source_match = bool(keyword and keyword in str(row["source_name"]).casefold())
-            if keyword and not match_count and not source_match:
-                continue
-            if speaker_filter and not any(speaker_filter == value.casefold() for value in speakers):
-                continue
-            if emotion_filter and not any(emotion_filter == value.casefold() for value in emotions):
-                continue
-            row_group_id = str(row["group_id"] or "")
-            if selected_members is not None and row['id'] not in selected_members:
-                continue
-            if selected_tag and selected_tag not in catalog_items[row['id']]['tag_ids']:
-                continue
-            if group_filter == "__ungrouped__" and row_group_id:
-                continue
-            if group_filter and group_filter != "__ungrouped__" and row_group_id != group_filter:
-                continue
-            candidates.append((row, match_count, segments, emotions, group_names.get(row_group_id, ""), speakers))
-
-        if sort_key in ("recorded_desc", "media_duration_desc"):
-            field = "media_created_at" if sort_key == "recorded_desc" else "media_duration_seconds"
-            candidates.sort(key=lambda item: (item[0][field] is not None, item[0][field] if item[0][field] is not None else "" if field == "media_created_at" else -1), reverse=True)
-        elif sort_key == "created_desc":
-            candidates.sort(key=lambda item: item[0]["created_at"], reverse=True)
-        elif sort_key == "speaker":
-            candidates.sort(key=lambda item: ((item[5][0] if item[5] else "￿"), item[0]["updated_at"]))
-        elif sort_key == "emotion":
-            candidates.sort(key=lambda item: ((item[3][0] if item[3] else "￿"), item[0]["updated_at"]))
-        elif sort_key == "keyword":
-            candidates.sort(key=lambda item: (item[1], item[0]["updated_at"]), reverse=True)
-        elif sort_key == "name":
-            candidates.sort(key=lambda item: str(item[0]["source_name"]).casefold())
-        elif sort_key == "group":
-            candidates.sort(key=lambda item: (
-                not bool(item[4]), item[4].casefold(), str(item[0]["source_name"]).casefold()
-            ))
-        else:
-            candidates.sort(key=lambda item: item[0]["updated_at"], reverse=True)
-        total = len(candidates)
-        page_candidates = candidates[page_offset:page_offset + page_limit] if page_limit else candidates
-        return jsonify({
-            "items": [
-                library_public(row, full=False, match_count=count, group_name=group_name, segments=segments)
-                for row, count, segments, _, group_name, _ in page_candidates
-            ],
-            "total": total,
-            "pagination": {"offset": page_offset, "limit": page_limit or total,
-                           "has_more": bool(page_limit and page_offset + len(page_candidates) < total)},
-            "groups": groups,
-            "data_groups": catalog['groups'],
-            "tags": catalog['tags'],
-            "facets": {
-                "speakers": sorted(all_speakers),
-                "emotions": sorted(all_emotions),
-                "groups": groups,
-            },
-        })
+        payload, status = list_library_items(
+            request.args, database_connection=database_connection, library_public=library_public,
+        )
+        return jsonify(payload), status
 
     def compare_group_interviews():
         if request.content_length and request.content_length > 64 * 1024:

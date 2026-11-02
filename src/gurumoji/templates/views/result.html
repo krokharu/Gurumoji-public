@@ -62,6 +62,11 @@
             </div>
             <div class="segment-list-header"><p id="segment-count"></p><button id="add-segment-button" class="secondary-button" type="button">＋ 発話を追加</button></div>
             <div class="segment-undo"><span id="segment-delete-status" role="status" aria-live="polite"></span><button id="undo-segment-delete" class="secondary-button" type="button" hidden>発話の削除を元に戻す</button></div>
+        <nav id="segment-pagination" class="segment-pagination" aria-label="発話一覧のページ" hidden>
+              <button id="segment-page-previous" class="secondary-button compact-button" type="button">前へ</button>
+              <span id="segment-page-label" role="status" aria-live="polite"></span>
+              <button id="segment-page-next" class="secondary-button compact-button" type="button">次へ</button>
+            </nav>
         <div id="segment-editor" class="segment-editor"></div>
           </div>
         </div>

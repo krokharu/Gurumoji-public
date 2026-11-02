@@ -4,7 +4,7 @@ let contentAnalysisPollTimer = null;
 let contentAnalysisPollSequence = 0;
 let transformerAnalysisPollTimer = null;
 let transformerAnalysisPollSequence = 0;
-let analysisEvidenceReturn = null;
+
 let analysisEvidenceRequest = 0;
 const insightCategoryLabels = {
   overview: '総合的な見解', themes: '主要テーマ', shared: '共通する意見',
@@ -32,13 +32,6 @@ function contentAnalysisState() {
   return contentAnalysisStates.get(id);
 }
 
-function contentButton(label, action, className = 'secondary-button compact-button') {
-  const button = analysisElement('button', className, label);
-  button.type = 'button';
-  button.addEventListener('click', action);
-  return button;
-}
-
 function currentAnalysisContent() {
   return window.matchMedia('(max-width: 959px)').matches ? analysisMobileContent : analysisDesktopContent;
 }
@@ -46,13 +39,6 @@ function currentAnalysisContent() {
 function jumpToContentSearch() {
   selectAnalysisPage('content');
   currentAnalysisContent()?.querySelector('[data-analysis-anchor="content"]')?.scrollIntoView({block: 'start'});
-}
-
-function analysisEvidenceTimeValid(segment) {
-  return Boolean(segment && !segment.time_unknown
-    && typeof segment.start === 'number' && Number.isFinite(segment.start)
-    && typeof segment.end === 'number' && Number.isFinite(segment.end)
-    && segment.start >= 0 && segment.end >= segment.start);
 }
 
 function evidenceDetails(ids, {snapshot = null, stale = false} = {}) {
@@ -140,10 +126,6 @@ function restoreAnalysisEvidencePosition() {
   analysisEvidenceReturn = null;
   if (changed) renderAnalysisWorkspace();
   requestAnimationFrame(() => window.scrollTo({top: saved.scroll, behavior: 'instant'}));
-}
-
-function returnToAnalysisEvidence() {
-  if (analysisEvidenceReturn) openAnalysisForItem(analysisEvidenceReturn.itemId);
 }
 
 function contentTermButton(term, speaker = '') {

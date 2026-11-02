@@ -2489,3 +2489,7 @@ body[data-view="library"] .processed-data-tools { display: flex; }
 .analysis-coming-soon .primary-button { margin-top: 12px; text-decoration: none; }
 #show-analysis-button::after, #show-library-analysis-button::after, .library-analysis-button::after, .analysis-jump-button::after { content: "Coming Soon"; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: rgba(24,33,29,.12); font-size: .7rem; font-weight: 800; letter-spacing: .02em; vertical-align: middle; }
 #show-analysis-button.active::after, .analysis-jump-button::after { background: rgba(255,255,255,.28); }
+
+/* 長い文字起こしでも表示中の発話だけを編集する。 */
+.segment-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 12px 0; }
+.segment-pagination[hidden] { display: none; }

@@ -290,8 +290,7 @@ async function openLinkedAnalysisEvidence() {
 
 // One read-only modal owns its item/run, navigation generation and request tokens.
 // It never invokes live analysis, pipeline status/recovery or publication.
-let analysisFixedViewer = null;
-let analysisFixedViewerGeneration = 0;
+
 function analysisFixedViewerElements() {
   if (analysisFixedViewer) return analysisFixedViewer;
   const dialog = analysisElement('dialog', 'app-dialog analysis-fixed-dialog');
@@ -308,15 +307,6 @@ function analysisFixedViewerElements() {
   document.body.append(dialog);
   analysisFixedViewer = {dialog, identity, status, body, close};
   return analysisFixedViewer;
-}
-
-function closeFixedAnalysisViewer() {
-  // Invalidate synchronously: native close events may arrive after another open.
-  ++analysisFixedViewerGeneration;
-  if (!analysisFixedViewer?.dialog.open) return false;
-  analysisFixedViewer.dialog.close();
-  analysisFixedViewer.body.replaceChildren();
-  return true;
 }
 
 async function openFixedAnalysisRun(itemId, runId) {
