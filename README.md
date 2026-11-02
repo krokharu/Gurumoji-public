@@ -8,6 +8,12 @@
 
 [利用開始ガイド](docs/GETTING_STARTED.md) · [データと外部通信](docs/DATA_AND_PRIVACY.md) · [公開版の開発手順](docs/DEVELOPMENT.md)
 
+## 画面イメージ
+
+![グルモジの新規作成画面](docs/assets/create-screen.png)
+
+公開版 β0.47.0 の新規作成画面です。確認用データで撮影しています。
+
 ## できること
 
 - Whisper / WhisperXによる文字起こし、話者分離、TXT・JSON・SRTの出力
