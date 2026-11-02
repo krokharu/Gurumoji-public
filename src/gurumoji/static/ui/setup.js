@@ -351,7 +351,7 @@ function transcriptFinishingPlan() {
   const enabled = mode !== 'off' && (document.querySelector('#ai-provider')?.value || 'none') !== 'none';
   const advanced = mode === 'advanced';
   const recommended = mode === 'recommended';
-  const deferred = mode !== 'off' && !advanced && Boolean(document.querySelector('#finish-in-obsidian')?.checked);
+  const deferred = false;
   const values = typeof readAiEfforts === 'function' ? readAiEfforts() : {
     cleanup: document.querySelector('[name="ai_effort_cleanup"]')?.value || 'medium',
     notation: document.querySelector('[name="ai_effort_notation"]')?.value || 'off'
@@ -467,7 +467,7 @@ function updateCreateSummary() {
   const destinationText = destinations.length ? destinations.map(item => `${item.label} / ${item.model}`).join('、') : '送信なし';
   document.querySelectorAll('[data-text-destinations]').forEach(element => { element.textContent = `今回のテキスト送信先: ${destinationText}`; });
   const deferredNote = document.querySelector('#deferred-destination-note');
-  if (deferredNote) deferredNote.hidden = !(finishInObsidian?.checked && selectedTranscriptFinishingMode() === 'recommended');
+  if (deferredNote) deferredNote.hidden = !(false && selectedTranscriptFinishingMode() === 'recommended');
   if (setupReadyState) setupReadyState.textContent = readyMessage;
   document.querySelectorAll('[data-setup-ready]').forEach(element => { element.textContent = readyMessage; });
 
@@ -502,16 +502,10 @@ function updateCreateSummary() {
   const finishingModel = finishNow
     ? `${providerLabel} / ${configuredModel || 'モデル未設定'}`
     : '使用モデルなし';
-  const finishingDetail = finishInVault
-    ? `${finishNow ? '話者を確認 / ' : ''}Obsidianに保存してあとで整える`
-    : (finishNow ? [finishingPlan.requested.cleanup ? (finishingPlan.recommendedCleanup ? '必要な箇所を整える' : '全文を整える') : '', finishingPlan.requested.name_extract ? '話者を確認する' : '', finishingPlan.outlineOutput ? 'アウトラインを出力' : '', finishingPlan.notation ? '表記ゆれを統一' : ''].filter(Boolean).join(' / ') : '認識結果をそのまま残す');
+  const finishingDetail = (finishNow ? [finishingPlan.requested.cleanup ? (finishingPlan.recommendedCleanup ? '必要な箇所を整える' : '全文を整える') : '', finishingPlan.requested.name_extract ? '話者を確認する' : '', finishingPlan.outlineOutput ? 'アウトラインを出力' : '', finishingPlan.notation ? '表記ゆれを統一' : ''].filter(Boolean).join(' / ') : '認識結果をそのまま残す');
   const finishingLabel = `${finishingState} / ${finishingModel}`;
   finishExtras.push(`AI仕上げ: ${finishingState}`);
-  if (finishInVault) finishExtras.push('Obsidianに保存してあとで整える');
   if (finishingPlan.compare) finishExtras.push('Jev修正要否比較');
-  const emotionEnabled = Boolean(emotionAnalysis && emotionAnalysis.checked);
-  if (emotionEnabled) finishExtras.push('感情分析');
-  const emotionLabel = emotionEnabled ? (selectedOptionText(emotionModel).split('（')[0] || '実行する') : '実行しない';
   const outputParts = ['TXT', 'JSON'];
   const outputExtras = [];
   if (writeSrt && writeSrt.checked) { outputParts.push('SRT'); outputExtras.push('SRT'); }
@@ -519,7 +513,7 @@ function updateCreateSummary() {
   const extras = [...recognitionExtras, ...finishExtras, ...outputExtras];
   const engineLabel = qwenSelected ? model : `WhisperX / ${model}`;
   const summaryText = `${mode} / ${engineLabel} / ${language} / \u524d\u51e6\u7406: ${preprocess}${extras.length ? ` / ${extras.join(' / ')}` : ''}`;
-  const launchText = `\u6587\u5b57\u8d77\u3053\u3057\u65b9\u5f0f ${engineLabel}\u30fb${transcriptionHardware} / \u8a71\u8005\u5206\u96e2 ${diarizationHardware} / AI\u4ed5\u4e0a\u3052 ${finishingState}${finishInVault ? '\uff08\u3042\u3068\u3067Obsidian\uff09' : ''}`;
+  const launchText = `\u6587\u5b57\u8d77\u3053\u3057\u65b9\u5f0f ${engineLabel}\u30fb${transcriptionHardware} / \u8a71\u8005\u5206\u96e2 ${diarizationHardware} / AI\u4ed5\u4e0a\u3052 ${finishingState}`;
   if (setupSummary) setupSummary.textContent = launchText;
   document.querySelectorAll('[data-setup-summary]').forEach(element => { element.textContent = summaryText; });
 
@@ -540,13 +534,11 @@ function updateCreateSummary() {
   setText('[data-choice-finishing-detail]', finishingDetail);
   document.querySelectorAll('[data-choice-finishing-state]').forEach(element => element.classList.toggle('is-off', !finishNow));
   document.querySelectorAll('[data-open-panel="finishing"]').forEach(element => element.dataset.active = finishNow ? 'true' : 'false');
-  setText('[data-settings-value="emotion"]', emotionLabel);
   setText('[data-settings-value="output"]', outputParts.join(' / '));
   setText('[data-review-source]', sourceLabel);
   setText('[data-review-transcription-compact]', `認識モデル ${model}・${transcriptionHardware} / 話者分離 ${diarizationHardware}`);
   setText('[data-review-transcription]', `認識モデル: ${model} / ${transcriptionHardware}`);
   setText('[data-review-diarization]', `話者分離: ${qwenSelected ? 'Nemotron 3' : 'pyannote.audio'} / ${diarizationHardware}${fixedSpeakerLabel ? ` / ${fixedSpeakerLabel}` : ''}`);
-  setText('[data-review-finish]', `AI仕上げ ${finishingLabel}${finishInVault ? ' / Obsidianに保存してあとで整える' : ''}${emotionEnabled ? ` / 感情分析 ${emotionLabel}` : ''}`);
   setText('[data-review-output]', outputParts.join(' / '));
   setText('[data-flow-detail="1"]', hasSource ? sourceLabel : '未選択');
   setText('[data-flow-detail="2"]', `${mode} / ${model} / ${language}`);

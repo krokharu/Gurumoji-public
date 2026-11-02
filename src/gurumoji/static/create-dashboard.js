@@ -959,8 +959,6 @@
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && openBubbleName) { const button = tile(openBubbleName); closeBubble(); button?.focus(); }
   });
-  const emotionToggle = $('#stitch-emotion');
-  emotionToggle?.addEventListener('change', () => { emotionAnalysis.checked = emotionToggle.checked; fire(emotionAnalysis, 'change'); });
 
   // The long confirmation text lives in a pop-up above the floating bar; it opens by itself
   // when the run is blocked so the reason is never hidden.
@@ -993,7 +991,6 @@
     if (isSpeakerCountFixed()) speakerMode = 'fixed';
     paintSpeakers();
     if (autoRegister) { autoRegister.checked = detectNames.checked; autoRegister.disabled = detectNames.disabled; }
-    if (emotionToggle) { emotionToggle.checked = emotionAnalysis.checked; emotionToggle.disabled = emotionAnalysis.disabled; }
     paintTile('finishing', finishingLevel[selectedTranscriptFinishingMode()] || 'none', 'AI仕上げ: 高=全文を整える / 中=必要な箇所を整える / 無=しない');
     paintTile('volume', volumeLevel[audioPreprocess.value] || 'mid', `動画・音声前処理: ${selectedOptionText(audioPreprocess).split(' — ')[0]}`);
     paintTile('model', modelLevel(modelName.value), `認識モデル: ${selectedOptionText(modelName).split(' — ')[0]}`);

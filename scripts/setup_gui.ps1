@@ -14,7 +14,6 @@ $script:Root = Split-Path -Parent $PSScriptRoot
 $script:TokenFile = Join-Path $script:Root 'config\tokens.json'
 $script:RunBatch = Join-Path $script:Root 'run.bat'
 $script:PythonInstallerScript = Join-Path $PSScriptRoot 'install_python.ps1'
-$script:VisualizationShortcutScript = Join-Path $PSScriptRoot 'ensure_visualization_shortcut.ps1'
 $script:ActiveProcess = $null
 $script:ActiveOutput = $null
 $script:ActiveLines = $null
@@ -611,13 +610,5 @@ $script:ProcessPollTimer.add_Tick({
     }
 })
 
-if (Test-Path -LiteralPath $script:VisualizationShortcutScript) {
-    try {
-        $shortcutMessage = @(& $script:VisualizationShortcutScript)
-        foreach ($message in $shortcutMessage) { $setupLog.AppendText($message + [Environment]::NewLine) }
-    } catch {
-        $setupLog.AppendText("可視化用Obsidianショートカットを作成できませんでした: $($_.Exception.Message)`r`n")
-    }
-}
 
 [void]$form.ShowDialog()

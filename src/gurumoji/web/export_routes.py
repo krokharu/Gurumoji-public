@@ -11,20 +11,13 @@ from typing import Any
 from flask import Flask, jsonify, request, send_file
 
 from .. import transcript_preparation as preparation
-from ..research_analysis import build_analysis_workbook
-from ..services.group_analysis import (
-    ANALYSIS_CSV_FIELDS,
-    analysis_csv_content,
-    analysis_csv_rows,
-    analysis_csv_safe,
-    focus_group_analysis_report_markdown,
-)
 from ..services.meeting_minutes import (
     format_meeting_minutes_markdown,
     meeting_external_payload,
     meeting_tasks_csv_text,
 )
 from ..services.outputs import safe_output_stem
+from ..services.transcript_shared import csv_safe
 from ..services.speaker_registry import speaker_registry_csv_bytes, speaker_attribute_csv_headers
 from ..services.transcription.segments import segment_bounds
 from ..text_utils import json_load
@@ -34,7 +27,6 @@ def register_export_routes(
     app: Flask,
     *,
     database_connection: Any,
-    group_analysis_for_row: Any,
     library_row: Any,
     list_speaker_registry: Any,
     meeting_minutes_export_row: Any,
@@ -74,89 +66,6 @@ def register_export_routes(
         return send_file(io.BytesIO(preparation.encode(value).encode("utf-8")),
                          mimetype="application/json", as_attachment=True, download_name=f"{item_id}_preparation.json")
 
-    def export_library_analysis_json(item_id: str):
-        row = library_row(item_id)
-        if row is None:
-            return jsonify({"error": "処理済みデータが見つかりません。"}), 404
-        try:
-            analysis = group_analysis_for_row(row, include_research_rows=True)
-            content = json.dumps(
-                analysis,
-                ensure_ascii=False,
-                indent=2,
-                allow_nan=False,
-            ).encode("utf-8")
-        except (ValueError, TypeError, OverflowError, sqlite3.Error):
-            return jsonify({"error": "分析データを出力できません。元データを確認してください。"}), 500
-        return send_file(
-            io.BytesIO(content),
-            mimetype="application/json; charset=utf-8",
-            as_attachment=True,
-            download_name=f"{safe_output_stem(str(row['source_name']))[:72]}_analysis.json",
-        )
-
-    def export_library_analysis_report(item_id: str):
-        row = library_row(item_id)
-        if row is None:
-            return jsonify({"error": "処理済みデータが見つかりません。"}), 404
-        try:
-            analysis = group_analysis_for_row(row, include_research_rows=True)
-            content = focus_group_analysis_report_markdown(analysis).encode("utf-8")
-        except (ValueError, TypeError, OverflowError, sqlite3.Error):
-            return jsonify({"error": "分析レポートを出力できません。元データを確認してください。"}), 500
-        return send_file(
-            io.BytesIO(content),
-            mimetype="text/markdown; charset=utf-8",
-            as_attachment=True,
-            download_name=f"{safe_output_stem(str(row['source_name']))[:64]}_分析レポート.md",
-        )
-
-    def export_library_analysis_xlsx(item_id: str):
-        row = library_row(item_id)
-        if row is None:
-            return jsonify({"error": "処理済みデータが見つかりません。"}), 404
-        try:
-            analysis = group_analysis_for_row(row, include_research_rows=True)
-            datasets = {
-                dataset: analysis_csv_rows(analysis, dataset)
-                for dataset in ANALYSIS_CSV_FIELDS
-            }
-            content = build_analysis_workbook(analysis, datasets)
-        except RuntimeError as exc:
-            return jsonify({"error": str(exc)}), 503
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
-        except (TypeError, OverflowError, sqlite3.Error):
-            return jsonify({"error": "Excel分析データを出力できません。元データを確認してください。"}), 500
-        return send_file(
-            io.BytesIO(content),
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            as_attachment=True,
-            download_name=(
-                f"{safe_output_stem(str(row['source_name']))[:64]}_研究分析.xlsx"
-            ),
-        )
-
-    def export_library_analysis_csv(item_id: str):
-        row = library_row(item_id)
-        if row is None:
-            return jsonify({"error": "処理済みデータが見つかりません。"}), 404
-        dataset = request.args.get("dataset", "speakers").strip().lower()
-        try:
-            analysis = group_analysis_for_row(row, include_research_rows=True)
-            content = analysis_csv_content(analysis, dataset)
-        except ValueError as exc:
-            return jsonify({"error": str(exc)}), 400
-        except (TypeError, OverflowError, sqlite3.Error):
-            return jsonify({"error": "分析データを出力できません。元データを確認してください。"}), 500
-        return send_file(
-            io.BytesIO(content),
-            mimetype="text/csv; charset=utf-8",
-            as_attachment=True,
-            download_name=(
-                f"{safe_output_stem(str(row['source_name']))[:64]}_analysis_{dataset}.csv"
-            ),
-        )
 
     def export_meeting_json(item_id: str):
         try:
@@ -239,7 +148,7 @@ def register_export_routes(
         custom_headers = list(attribute_headers.values())
         stream = io.StringIO(newline="")
         writer = csv.DictWriter(stream, fieldnames=fixed_headers + custom_headers)
-        writer.writerow({header: analysis_csv_safe(header) for header in fixed_headers + custom_headers})
+        writer.writerow({header: csv_safe(header) for header in fixed_headers + custom_headers})
         for label, profile in profiles.items():
             global_record = registry.get(profile.get("global_speaker_id"), {})
             metric = metrics.get(label, {"count": 0, "seconds": 0.0, "characters": 0})
@@ -273,7 +182,7 @@ def register_export_routes(
                 **{attribute_headers[key]: value
                    for key, value in (global_record.get("attributes", {}) or {}).items()},
             }
-            writer.writerow({key: analysis_csv_safe(value) for key, value in export_row.items()})
+            writer.writerow({key: csv_safe(value) for key, value in export_row.items()})
         content = ("\ufeff" + stream.getvalue()).encode("utf-8")
         return send_file(
             io.BytesIO(content),
@@ -287,10 +196,6 @@ def register_export_routes(
     endpoints = (
         ('/api/speakers/export.csv', 'export_speaker_registry', export_speaker_registry, 'GET'),
         ('/api/library/<item_id>/preparation/export.json', 'export_transcript_preparation', export_transcript_preparation, 'GET'),
-        ('/api/library/<item_id>/analysis/export.json', 'export_library_analysis_json', export_library_analysis_json, 'GET'),
-        ('/api/library/<item_id>/analysis/export.md', 'export_library_analysis_report', export_library_analysis_report, 'GET'),
-        ('/api/library/<item_id>/analysis/export.xlsx', 'export_library_analysis_xlsx', export_library_analysis_xlsx, 'GET'),
-        ('/api/library/<item_id>/analysis/export.csv', 'export_library_analysis_csv', export_library_analysis_csv, 'GET'),
         ('/api/library/<item_id>/meeting.json', 'export_meeting_json', export_meeting_json, 'GET'),
         ('/api/library/<item_id>/meeting-tasks.csv', 'export_meeting_tasks_csv', export_meeting_tasks_csv, 'GET'),
         ('/api/library/<item_id>/meeting-minutes.md', 'export_meeting_minutes_markdown', export_meeting_minutes_markdown, 'GET'),

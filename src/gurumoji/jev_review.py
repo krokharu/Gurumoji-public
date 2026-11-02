@@ -10,7 +10,7 @@ import json
 from typing import Any, Callable
 
 from .ai_finishing import fragments
-from .analysis_insights import bounded_batches
+from .services.transcript_shared import bounded_batches
 
 JEV_REVIEW_VERSION = "jev-transcript-review-1"
 JEV_DEFAULT_MODEL = "jev-latest"

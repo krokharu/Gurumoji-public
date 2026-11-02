@@ -15,7 +15,6 @@ TRANSCRIPTION_BACKENDS = {"whisperx", "qwen3_nemotron", "haas_ja"}
 # Backends that run in isolated environments and diarize with Nemotron 3.
 EXTERNAL_STACK_BACKENDS = frozenset({"qwen3_nemotron", "haas_ja"})
 LANGUAGES = {None, "ja", "en", "zh", "ko"}
-AIST_EMOTION_MODEL_CHOICES = {"kushinada", "izanami", "both"}
 CONVERSATION_MODES = {
     "meeting": "meeting",
     "group_interview": "focus_group",
@@ -49,13 +48,10 @@ class JobOptions:
     clean_transcript: bool
     detect_speaker_names: bool
     create_outline: bool
-    emotion_analysis: bool
-    emotion_model: str
     ai_api_key: str = ""
     ai_model: str = ""
     ai_base_url: str = ""
     owns_output_dir: bool = False
-    finish_in_obsidian: bool = True
     ai_efforts: dict = field(default_factory=normalize_efforts)
     num_speakers: int | None = None
     conversation_mode: str = "meeting"
@@ -65,7 +61,6 @@ class JobOptions:
     jev_api_key: str = ""
     jev_model: str = JEV_DEFAULT_MODEL
     transcript_finishing_mode: str = "custom"
-    write_word_cloud: bool = False
     generate_meeting_minutes: bool = False
     transcription_backend: str = "whisperx"
     prior_speakers: tuple[tuple[str, str], ...] = ()

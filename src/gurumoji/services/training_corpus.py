@@ -22,7 +22,7 @@ from typing import Any, Callable
 
 from ..text_utils import clean_multiline, clean_single_line, json_load, utc_now_iso
 from .durable_files import atomic_write_bytes, atomic_write_text, durable_move, sync_file_data, temporary_output_path
-from .group_analysis import analysis_csv_safe
+from .transcript_shared import csv_safe
 
 
 @dataclass(frozen=True)
@@ -124,7 +124,7 @@ def training_export_contents(events: list[dict[str, Any]]) -> tuple[str, str]:
     )
     stream = io.StringIO(newline="")
     writer = csv.DictWriter(stream, fieldnames=TRAINING_MANIFEST_FIELDS)
-    writer.writerow({header: analysis_csv_safe(header) for header in TRAINING_MANIFEST_FIELDS})
+    writer.writerow({header: csv_safe(header) for header in TRAINING_MANIFEST_FIELDS})
     for event in events:
         current = event.get("after") or event.get("before") or {}
         if not isinstance(current, dict):
@@ -143,7 +143,7 @@ def training_export_contents(events: list[dict[str, Any]]) -> tuple[str, str]:
             "transcript_id": event.get("transcript_id") or "",
             "segment_id": event.get("segment_id") or "",
         }
-        writer.writerow({key: analysis_csv_safe(value) for key, value in manifest_row.items()})
+        writer.writerow({key: csv_safe(value) for key, value in manifest_row.items()})
     return jsonl_content, stream.getvalue()
 
 

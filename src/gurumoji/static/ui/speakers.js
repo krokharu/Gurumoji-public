@@ -1,3 +1,24 @@
+function surveyQuestionKeys(records = speakerRegistry) {
+
+  const keys = new Set();
+
+  records.forEach(record => {
+
+    const attributes = record && typeof record.attributes === 'object' ? record.attributes : {};
+
+    Object.keys(attributes || {}).forEach(key => {
+
+      const clean = String(key || '').trim();
+
+      if (clean) keys.add(clean);
+
+    });
+
+  });
+
+  return [...keys].sort((a, b) => a.localeCompare(b, 'ja', {numeric: true, sensitivity: 'base'}));
+
+}
 /* 公開版の画面処理: speakers。共有状態はapp.jsで管理する。 */
 function newLocalSpeakerId() {
   return self.crypto && self.crypto.randomUUID
@@ -40,402 +61,6 @@ function textToAttributes(value) {
   return attributes;
 }
 
-function speakerSurveyQuestionKeys(records = speakerRegistry) {
-  const keys = new Set();
-  records.forEach(record => {
-    const attributes = record && typeof record.attributes === 'object' ? record.attributes : {};
-    Object.keys(attributes || {}).forEach(key => {
-      const clean = String(key || '').trim();
-      if (clean) keys.add(clean);
-    });
-  });
-  return [...keys].sort((a, b) => a.localeCompare(b, 'ja', {numeric: true, sensitivity: 'base'}));
-}
-
-function speakerSurveyAnswer(record, question) {
-  const attributes = record && typeof record.attributes === 'object' ? record.attributes : {};
-  return String((attributes || {})[question] ?? '').trim();
-}
-
-function speakerSurveyQuestionSummary(records, question) {
-  const counts = new Map();
-  const answeredRecords = [];
-  records.forEach(record => {
-    const answer = speakerSurveyAnswer(record, question);
-    if (!answer) return;
-    answeredRecords.push(record);
-    counts.set(answer, (counts.get(answer) || 0) + 1);
-  });
-  const values = [...counts.entries()]
-    .map(([value, count]) => ({value, count}))
-    .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, 'ja', {numeric: true}));
-  return {
-    question,
-    answeredRecords,
-    answered: answeredRecords.length,
-    missing: Math.max(0, records.length - answeredRecords.length),
-    values
-  };
-}
-
-function speakerSurveyNumericValue(value) {
-  const normalized = String(value || '').trim().normalize('NFKC').replaceAll(',', '');
-  if (/^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) return Number(normalized);
-  const scale = normalized.match(/^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*[:：]/);
-  return scale ? Number(scale[1]) : null;
-}
-
-function speakerSurveyNumericSummary(records, question) {
-  const values = records
-    .map(record => speakerSurveyNumericValue(speakerSurveyAnswer(record, question)))
-    .filter(Number.isFinite)
-    .sort((a, b) => a - b);
-  const answered = records.filter(record => speakerSurveyAnswer(record, question)).length;
-  if (values.length < 2 || values.length < answered * 0.8) return null;
-  const middle = Math.floor(values.length / 2);
-  const median = values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
-  return {
-    count: values.length,
-    mean: values.reduce((sum, value) => sum + value, 0) / values.length,
-    median,
-    minimum: values[0],
-    maximum: values[values.length - 1]
-  };
-}
-
-function speakerSurveyCorrelation(records, questionA, questionB) {
-  const pairs = records.map(record => [
-    speakerSurveyNumericValue(speakerSurveyAnswer(record, questionA)),
-    speakerSurveyNumericValue(speakerSurveyAnswer(record, questionB))
-  ]).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
-  if (pairs.length < 3) return null;
-  const meanA = pairs.reduce((sum, pair) => sum + pair[0], 0) / pairs.length;
-  const meanB = pairs.reduce((sum, pair) => sum + pair[1], 0) / pairs.length;
-  const numerator = pairs.reduce((sum, pair) => sum + (pair[0] - meanA) * (pair[1] - meanB), 0);
-  const denominatorA = pairs.reduce((sum, pair) => sum + (pair[0] - meanA) ** 2, 0);
-  const denominatorB = pairs.reduce((sum, pair) => sum + (pair[1] - meanB) ** 2, 0);
-  const denominator = Math.sqrt(denominatorA * denominatorB);
-  if (!denominator) return null;
-  return {count: pairs.length, coefficient: numerator / denominator};
-}
-
-function scheduleSpeakerSurveyAnalysis() {
-  window.clearTimeout(speakerSurveyAnalysisTimer);
-  speakerSurveyAnalysisTimer = window.setTimeout(renderSpeakerSurveyAnalysis, 160);
-}
-
-function appendSpeakerSurveyBar(container, label, count, total, maximum) {
-  const row = analysisElement('div', 'speaker-survey-bar');
-  const heading = analysisElement('div');
-  heading.append(
-    analysisElement('strong', '', label),
-    analysisElement('span', '', `${count}人 / ${total ? (100 * count / total).toFixed(1) : '0.0'}%`)
-  );
-  const track = analysisElement('div', 'speaker-survey-bar-track');
-  const fill = analysisElement('i');
-  fill.style.width = `${maximum ? (100 * count / maximum).toFixed(2) : 0}%`;
-  track.append(fill);
-  row.append(heading, track);
-  container.append(row);
-}
-
-function buildSpeakerSurveyCompleteness(records, questions) {
-  const panel = analysisElement('section', 'speaker-survey-panel');
-  panel.append(
-    analysisElement('h4', '', '質問別の回答率'),
-    analysisElement('p', 'speaker-survey-help', '')
-  );
-  panel.lastChild.textContent = '回答漏れの確認と、分析対象にする質問の選択ができます。';
-  const list = analysisElement('div', 'speaker-survey-completeness');
-  questions
-    .map(question => speakerSurveyQuestionSummary(records, question))
-    .sort((a, b) => b.answered - a.answered || a.question.localeCompare(b.question, 'ja'))
-    .forEach(summary => {
-      const button = analysisElement('button', summary.question === speakerSurveyAnalysisState.primaryQuestion ? 'active' : '');
-      button.type = 'button';
-      button.setAttribute('aria-pressed', String(summary.question === speakerSurveyAnalysisState.primaryQuestion));
-      const text = analysisElement('span');
-      text.append(
-        analysisElement('strong', '', summary.question),
-        analysisElement('small', '', `${summary.answered} / ${records.length}人`)
-      );
-      const track = analysisElement('i');
-      const fill = analysisElement('b');
-      fill.style.width = `${records.length ? (100 * summary.answered / records.length).toFixed(2) : 0}%`;
-      track.append(fill);
-      button.append(text, track);
-      button.addEventListener('click', () => {
-        speakerSurveyAnalysisState.primaryQuestion = summary.question;
-        speakerSurveyAnalysisState.answerFilter = '';
-        if (speakerSurveyAnalysisState.secondaryQuestion === summary.question) {
-          speakerSurveyAnalysisState.secondaryQuestion = questions.find(item => item !== summary.question) || '';
-        }
-        renderSpeakerSurveyAnalysis();
-      });
-      list.append(button);
-    });
-  panel.append(list);
-  return panel;
-}
-
-function buildSpeakerSurveyCrosstab(records, primaryQuestion, secondaryQuestion) {
-  const panel = analysisElement('section', 'speaker-survey-panel speaker-survey-crosstab');
-  panel.append(
-    analysisElement('h4', '', '2項目クロス集計'),
-    analysisElement('p', 'speaker-survey-help', `${primaryQuestion} × ${secondaryQuestion} の組み合わせ人数と行内割合です。`)
-  );
-  const primary = speakerSurveyQuestionSummary(records, primaryQuestion);
-  const secondary = speakerSurveyQuestionSummary(records, secondaryQuestion);
-  const rowValues = primary.values.slice(0, 12).map(item => item.value);
-  const columnValues = secondary.values.slice(0, 10).map(item => item.value);
-  if (!rowValues.length || !columnValues.length) {
-    panel.append(analysisElement('p', 'analysis-no-data', 'クロス集計できる回答がありません。'));
-    return panel;
-  }
-  const wrap = analysisElement('div', 'speaker-survey-table-wrap');
-  const table = document.createElement('table');
-  table.className = 'speaker-survey-table';
-  const head = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  headRow.append(analysisElement('th', '', primaryQuestion));
-  columnValues.forEach(value => headRow.append(analysisElement('th', '', value)));
-  headRow.append(analysisElement('th', '', '合計'));
-  head.append(headRow);
-  const body = document.createElement('tbody');
-  rowValues.forEach(rowValue => {
-    const row = document.createElement('tr');
-    row.append(analysisElement('th', '', rowValue));
-    const rowTotal = records.filter(record => speakerSurveyAnswer(record, primaryQuestion) === rowValue).length;
-    columnValues.forEach(columnValue => {
-      const count = records.filter(record => (
-        speakerSurveyAnswer(record, primaryQuestion) === rowValue
-        && speakerSurveyAnswer(record, secondaryQuestion) === columnValue
-      )).length;
-      const cell = analysisElement('td', count ? 'has-value' : '', count
-        ? `${count}（${rowTotal ? (100 * count / rowTotal).toFixed(0) : 0}%）`
-        : '—');
-      if (count) cell.style.setProperty('--survey-cell-strength', String(count / Math.max(1, rowTotal)));
-      row.append(cell);
-    });
-    row.append(analysisElement('td', 'total', String(rowTotal)));
-    body.append(row);
-  });
-  table.append(head, body);
-  wrap.append(table);
-  panel.append(wrap);
-  if (primary.values.length > rowValues.length || secondary.values.length > columnValues.length) {
-    panel.append(analysisElement('p', 'speaker-survey-note', '表示量を抑えるため、回答数が多い選択肢を優先して表示しています。'));
-  }
-  const correlation = speakerSurveyCorrelation(records, primaryQuestion, secondaryQuestion);
-  if (correlation) {
-    const correlationBox = analysisElement('div', 'speaker-survey-correlation');
-    correlationBox.append(
-      analysisElement('span', '', '数値回答の相関'),
-      analysisElement('strong', '', `r = ${correlation.coefficient.toFixed(3)}`),
-      analysisElement('small', '', `n = ${correlation.count}。関連の強さを示す記述値で、因果関係は示しません。`)
-    );
-    panel.append(correlationBox);
-  }
-  return panel;
-}
-
-function renderSpeakerSurveyAnalysis() {
-  const container = document.querySelector('#speaker-survey-analysis-content');
-  if (!container) return;
-  window.clearTimeout(speakerSurveyAnalysisTimer);
-  speakerSurveyAnalysisTimer = null;
-  const allQuestions = speakerSurveyQuestionKeys(speakerRegistry);
-  const metric = document.querySelector('#registry-survey-metric');
-  if (metric) metric.textContent = String(allQuestions.length);
-  container.replaceChildren();
-  if (!allQuestions.length) {
-    const empty = analysisElement('div', 'speaker-survey-empty');
-    empty.append(
-      analysisElement('strong', '', '事前アンケート回答がまだありません'),
-      analysisElement('p', '', 'Googleフォームの回答CSVを読み込むか、各話者の「事前アンケート回答」に「質問=回答」の形式で入力してください。')
-    );
-    container.append(empty);
-    return;
-  }
-
-  const records = speakerSurveyAnalysisState.includeInactive
-    ? [...speakerRegistry]
-    : speakerRegistry.filter(record => record.active !== false);
-  if (!allQuestions.includes(speakerSurveyAnalysisState.primaryQuestion)) {
-    speakerSurveyAnalysisState.primaryQuestion = allQuestions[0];
-  }
-  if (
-    !allQuestions.includes(speakerSurveyAnalysisState.secondaryQuestion)
-    || speakerSurveyAnalysisState.secondaryQuestion === speakerSurveyAnalysisState.primaryQuestion
-  ) {
-    speakerSurveyAnalysisState.secondaryQuestion = allQuestions.find(
-      question => question !== speakerSurveyAnalysisState.primaryQuestion
-    ) || '';
-  }
-  const primaryQuestion = speakerSurveyAnalysisState.primaryQuestion;
-  const primary = speakerSurveyQuestionSummary(records, primaryQuestion);
-  if (
-    speakerSurveyAnalysisState.answerFilter
-    && !primary.values.some(item => item.value === speakerSurveyAnalysisState.answerFilter)
-  ) {
-    speakerSurveyAnalysisState.answerFilter = '';
-  }
-
-  const controls = analysisElement('div', 'speaker-survey-controls');
-  const primaryLabel = analysisElement('label', 'field');
-  primaryLabel.append(analysisElement('span', '', '分析する質問'));
-  const primarySelect = document.createElement('select');
-  allQuestions.forEach(question => primarySelect.add(new Option(question, question)));
-  primarySelect.value = primaryQuestion;
-  primarySelect.addEventListener('change', () => {
-    speakerSurveyAnalysisState.primaryQuestion = primarySelect.value;
-    speakerSurveyAnalysisState.answerFilter = '';
-    if (speakerSurveyAnalysisState.secondaryQuestion === primarySelect.value) {
-      speakerSurveyAnalysisState.secondaryQuestion = allQuestions.find(question => question !== primarySelect.value) || '';
-    }
-    renderSpeakerSurveyAnalysis();
-  });
-  primaryLabel.append(primarySelect);
-
-  const secondaryLabel = analysisElement('label', 'field');
-  secondaryLabel.append(analysisElement('span', '', 'クロス集計する質問'));
-  const secondarySelect = document.createElement('select');
-  secondarySelect.add(new Option('クロス集計しない', ''));
-  allQuestions.filter(question => question !== primaryQuestion)
-    .forEach(question => secondarySelect.add(new Option(question, question)));
-  secondarySelect.value = speakerSurveyAnalysisState.secondaryQuestion;
-  secondarySelect.addEventListener('change', () => {
-    speakerSurveyAnalysisState.secondaryQuestion = secondarySelect.value;
-    renderSpeakerSurveyAnalysis();
-  });
-  secondaryLabel.append(secondarySelect);
-
-  const filterLabel = analysisElement('label', 'field');
-  filterLabel.append(analysisElement('span', '', '回答で参加者を絞り込み'));
-  const answerSelect = document.createElement('select');
-  answerSelect.add(new Option('すべての回答', ''));
-  primary.values.forEach(item => answerSelect.add(new Option(`${item.value}（${item.count}人）`, item.value)));
-  answerSelect.value = speakerSurveyAnalysisState.answerFilter;
-  answerSelect.addEventListener('change', () => {
-    speakerSurveyAnalysisState.answerFilter = answerSelect.value;
-    renderSpeakerSurveyAnalysis();
-  });
-  filterLabel.append(answerSelect);
-
-  const inactiveLabel = analysisElement('label', 'mini-check speaker-survey-inactive');
-  const inactive = document.createElement('input');
-  inactive.type = 'checkbox';
-  inactive.checked = speakerSurveyAnalysisState.includeInactive;
-  inactive.addEventListener('change', () => {
-    speakerSurveyAnalysisState.includeInactive = inactive.checked;
-    speakerSurveyAnalysisState.answerFilter = '';
-    renderSpeakerSurveyAnalysis();
-  });
-  inactiveLabel.append(inactive, document.createTextNode('無効な話者を含める'));
-  controls.append(primaryLabel, secondaryLabel, filterLabel, inactiveLabel);
-  container.append(controls);
-
-  const overview = analysisElement('div', 'speaker-survey-overview');
-  const responseRate = records.length ? 100 * primary.answered / records.length : 0;
-  [
-    ['分析対象', `${records.length}人`, speakerSurveyAnalysisState.includeInactive ? '全登録話者' : '有効な話者'],
-    ['質問項目', `${allQuestions.length}問`, 'CSVの未知列を含む'],
-    ['回答済み', `${primary.answered}人`, `${responseRate.toFixed(1)}%`],
-    ['未回答', `${primary.missing}人`, primary.missing ? '回答漏れを確認' : '回答完了']
-  ].forEach(([label, value, note]) => {
-    const item = analysisElement('div');
-    item.append(
-      analysisElement('span', '', label),
-      analysisElement('strong', '', value),
-      analysisElement('small', '', note)
-    );
-    overview.append(item);
-  });
-  container.append(overview);
-
-  const grid = analysisElement('div', 'speaker-survey-grid');
-  const distributionPanel = analysisElement('section', 'speaker-survey-panel');
-  distributionPanel.append(
-    analysisElement('h4', '', `回答分布：${primaryQuestion}`),
-    analysisElement('p', 'speaker-survey-help', '同じ回答をまとめ、回答者全体に占める割合を表示します。')
-  );
-  const distribution = analysisElement('div', 'speaker-survey-bars');
-  const maximum = Math.max(0, ...primary.values.map(item => item.count));
-  primary.values.slice(0, 20).forEach(item => {
-    appendSpeakerSurveyBar(distribution, item.value, item.count, primary.answered, maximum);
-  });
-  if (!primary.values.length) distribution.append(analysisElement('p', 'analysis-no-data', 'この質問への回答がありません。'));
-  distributionPanel.append(distribution);
-  if (primary.values.length > 20) {
-    distributionPanel.append(analysisElement('p', 'speaker-survey-note', `回答数上位20件を表示（全${primary.values.length}種類）`));
-  }
-  const numeric = speakerSurveyNumericSummary(records, primaryQuestion);
-  if (numeric) {
-    const numericBox = analysisElement('div', 'speaker-survey-numeric');
-    [
-      ['平均', numeric.mean.toFixed(2)],
-      ['中央値', numeric.median.toFixed(2)],
-      ['最小', numeric.minimum.toFixed(2)],
-      ['最大', numeric.maximum.toFixed(2)]
-    ].forEach(([label, value]) => {
-      const item = analysisElement('span');
-      item.append(analysisElement('small', '', label), document.createTextNode(value));
-      numericBox.append(item);
-    });
-    numericBox.append(analysisElement('p', '', `数値として解釈できた回答 n=${numeric.count}`));
-    distributionPanel.append(numericBox);
-  }
-  grid.append(distributionPanel, buildSpeakerSurveyCompleteness(records, allQuestions));
-  container.append(grid);
-
-  if (speakerSurveyAnalysisState.secondaryQuestion) {
-    container.append(buildSpeakerSurveyCrosstab(
-      records,
-      primaryQuestion,
-      speakerSurveyAnalysisState.secondaryQuestion
-    ));
-  }
-
-  const participantPanel = analysisElement('section', 'speaker-survey-panel speaker-survey-participants');
-  const selectedRecords = records.filter(record => (
-    !speakerSurveyAnalysisState.answerFilter
-    || speakerSurveyAnswer(record, primaryQuestion) === speakerSurveyAnalysisState.answerFilter
-  ));
-  participantPanel.append(
-    analysisElement('h4', '', `該当参加者（${selectedRecords.length}人）`),
-    analysisElement('p', 'speaker-survey-help', speakerSurveyAnalysisState.answerFilter
-      ? `「${speakerSurveyAnalysisState.answerFilter}」と回答した参加者です。`
-      : '回答内容と参加者を照合できます。氏名より仮名・参加者コードの利用を推奨します。')
-  );
-  const tableWrap = analysisElement('div', 'speaker-survey-table-wrap');
-  const table = document.createElement('table');
-  table.className = 'speaker-survey-table participant';
-  const head = document.createElement('thead');
-  const headRow = document.createElement('tr');
-  ['参加者', '参加者コード', primaryQuestion, speakerSurveyAnalysisState.secondaryQuestion].filter(Boolean)
-    .forEach(label => headRow.append(analysisElement('th', '', label)));
-  head.append(headRow);
-  const body = document.createElement('tbody');
-  selectedRecords.slice(0, 100).forEach(record => {
-    const row = document.createElement('tr');
-    [
-      speakerRecordName(record),
-      record.participant_code || '—',
-      speakerSurveyAnswer(record, primaryQuestion) || '未回答',
-      speakerSurveyAnalysisState.secondaryQuestion
-        ? speakerSurveyAnswer(record, speakerSurveyAnalysisState.secondaryQuestion) || '未回答'
-        : null
-    ].filter(value => value !== null).forEach(value => row.append(analysisElement('td', '', value)));
-    body.append(row);
-  });
-  table.append(head, body);
-  tableWrap.append(table);
-  participantPanel.append(tableWrap);
-  if (selectedRecords.length > 100) {
-    participantPanel.append(analysisElement('p', 'speaker-survey-note', '画面には先頭100人を表示しています。全件はCSV書き出しで確認できます。'));
-  }
-  container.append(participantPanel);
-}
 
 function setSpeakerRegistryDirty(dirty = true, trackMutation = true) {
   speakerRegistryDirty = dirty;
@@ -451,7 +76,7 @@ function setSpeakerRegistryDirty(dirty = true, trackMutation = true) {
   }
   if (speakerRegistrySaveButton) speakerRegistrySaveButton.disabled = !dirty || speakerRegistrySaveInProgress;
   if (speakerRegistryCard) speakerRegistryCard.classList.toggle('has-unsaved', dirty);
-  scheduleSpeakerSurveyAnalysis();
+
 }
 
 function makeSheetInput(record, key, {
@@ -554,7 +179,7 @@ function updateSpeakerRegistryOverview() {
   const values = {
     '#registry-total-metric': speakerRegistry.length,
     '#registry-active-metric': active.length,
-    '#registry-survey-metric': speakerSurveyQuestionKeys(speakerRegistry).length
+    '#registry-survey-metric': surveyQuestionKeys(speakerRegistry).length
   };
   Object.entries(values).forEach(([selector, value]) => {
     const element = document.querySelector(selector);
@@ -756,7 +381,7 @@ function renderSpeakerRegistry() {
     renderSpeakerRegistryTable(visible);
   }
   updateSpeakerRegistryOverview();
-  renderSpeakerSurveyAnalysis();
+
   const count = document.querySelector('#speaker-registry-count');
   if (count) count.textContent = `${visible.length}人を表示（登録 ${speakerRegistry.length}人）`;
 }

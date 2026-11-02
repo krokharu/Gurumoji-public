@@ -11,7 +11,6 @@ from typing import Any, Callable
 
 from flask import Flask, jsonify, request, send_file
 
-from ..handlers.analysis_commands import ComparisonRequestError
 from ..services.durable_files import path_is_within
 from ..services.library_trash import TrashError
 from ..services.media_files import media_kind
@@ -25,14 +24,9 @@ def register_library_routes(
     *,
     media_directory: Callable[[], Any],
     _delete_library_item_locked: Any,
-    analysis_archive_store: Any,
-    archive_source_stamp: Any,
-    build_interview_comparison: Any,
     database_connection: Any,
     file_dialog_lock: Any,
     generate_video_thumbnail: Any,
-    generate_word_cloud_thumbnail: Any,
-    interview_comparison_request: Any,
     library_public: Any,
     library_row: Any,
     library_write_lock: Any,
@@ -123,32 +117,6 @@ def register_library_routes(
         )
         return jsonify(payload), status
 
-    def compare_group_interviews():
-        if request.content_length and request.content_length > 64 * 1024:
-            return jsonify({"error": "比較対象の指定が大きすぎます。"}), 413
-        try:
-            with library_write_lock:
-                payload = request.get_json(silent=True)
-                rows, allow_different = interview_comparison_request(payload)
-                with database_connection() as connection:
-                    selection = data_catalog.freeze(connection, [str(row['id']) for row in rows],
-                        group_ids=[payload['data_group_id']] if payload.get('data_group_id') else [], group_by=payload.get('group_by'))
-                result = build_interview_comparison(rows, allow_different_content=allow_different)
-                result['target_snapshot'] = selection
-                result["input_fingerprints"] = {str(row["id"]): archive_source_stamp(row) for row in rows}
-        except ComparisonRequestError as exc:
-            return jsonify({"error": str(exc)}), exc.status
-        except (TypeError, ValueError) as exc:
-            return jsonify({"error": str(exc)}), 409
-        except (OverflowError, sqlite3.Error):
-            return jsonify({"error": "インタビュー比較を生成できません。"}), 500
-        return jsonify(result)
-
-    def list_interview_comparison_runs():
-        store = analysis_archive_store()
-        local = local_path_access_allowed()
-        return jsonify({"runs": [{**store.public(run, local=local), "member_ids": store.members(run["id"])}
-                                 for run in store.list_comparisons()]})
 
     def create_library_item():
         payload = request.get_json(silent=True)
@@ -178,24 +146,6 @@ def register_library_routes(
             return jsonify({"error": "データが見つかりません。"}), 404
         return jsonify(library_public(row))
 
-    def library_thumbnail(item_id: str):
-        row = library_row(item_id)
-        if row is None:
-            return jsonify({"error": "データが見つかりません。"}), 404
-        try:
-            thumbnail_path = generate_word_cloud_thumbnail(
-                item_id,
-                str(row["source_name"]),
-                row_segments(row),
-            )
-            return send_file(
-                thumbnail_path,
-                mimetype="image/svg+xml",
-                conditional=True,
-                max_age=86400,
-            )
-        except OSError as exc:
-            return jsonify({"error": f"ワードクラウドを作成できません: {exc}"}), 500
 
     def delete_library_item(item_id: str):
         with library_write_lock:
@@ -261,11 +211,8 @@ def register_library_routes(
         ('/api/select-input', 'select_input_file', select_input_file, 'POST'),
         ('/api/source-thumbnail', 'source_thumbnail', source_thumbnail, 'POST'),
         ('/api/library', 'list_library', list_library, 'GET'),
-        ('/api/library/interview-comparison', 'compare_group_interviews', compare_group_interviews, 'POST'),
-        ('/api/library/interview-comparison/runs', 'list_interview_comparison_runs', list_interview_comparison_runs, 'GET'),
         ('/api/library', 'create_library_item', create_library_item, 'POST'),
         ('/api/library/<item_id>', 'get_library_item', get_library_item, 'GET'),
-        ('/api/library/<item_id>/thumbnail', 'library_thumbnail', library_thumbnail, 'GET'),
         ('/api/library/<item_id>', 'delete_library_item', delete_library_item, 'DELETE'),
         ('/api/library/trash', 'list_library_trash', list_trash, 'GET'),
         ('/api/library/trash/<entry_id>/restore', 'restore_library_trash', restore_trash_entry, 'POST'),

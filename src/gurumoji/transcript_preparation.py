@@ -68,15 +68,15 @@ def initialize(connection):
         item_id TEXT NOT NULL REFERENCES library_items(id) ON DELETE CASCADE,
         revision INTEGER NOT NULL, state_json TEXT NOT NULL, created_at TEXT NOT NULL,
         PRIMARY KEY(item_id, revision))""")
-    # initialize_store creates the run catalog before these preparation tables.
-    # Keep invalidation inside the same transaction, including multi-interview runs.
+    # 旧版の解析履歴がある場合だけ、既存の失効処理を維持する。
     for operation, record in (("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")):
-        connection.execute(f"""CREATE TRIGGER IF NOT EXISTS preparation_runs_{operation.lower()}
-            AFTER {operation} ON transcript_preparations
-            BEGIN UPDATE analysis_runs SET stale=1
-                WHERE item_id={record}.item_id OR id IN (
-                    SELECT run_id FROM analysis_run_members WHERE item_id={record}.item_id);
-            END""")
+        if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_runs'").fetchone():
+            connection.execute(f"""CREATE TRIGGER IF NOT EXISTS preparation_runs_{operation.lower()}
+                AFTER {operation} ON transcript_preparations
+                BEGIN UPDATE analysis_runs SET stale=1
+                    WHERE item_id={record}.item_id OR id IN (
+                        SELECT run_id FROM analysis_run_members WHERE item_id={record}.item_id);
+                END""")
 
 
 def source(row):
@@ -619,15 +619,3 @@ def save(connection, row, segments, payload):
     capture(connection, row, "preparation_baseline")
     write_state(connection, row["id"], before["revision"] + 1, state)
     return view(connection, row, segments)
-
-
-def bind_analysis(connection, row):
-    """Unrelated analysis saves must not silently clear a stale evidence binding."""
-    revision, state = load_state(connection, row["id"])
-    if state.get("analysis_basis"):
-        return
-    fingerprint = digest(source(row))
-    active = state if state.get("source_hash") == fingerprint else {}
-    state["analysis_basis"] = basis_hash(fingerprint, active)
-    state["analysis_source_hash"] = fingerprint
-    write_state(connection, row["id"], revision + 1, state)

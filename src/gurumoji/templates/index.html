@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-analysis-enabled="{{ 'true' if analysis_enabled else 'false' }}">
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta name="gurumoji-icon-base" content="{{ url_for('static', filename='icons') }}/">
@@ -37,7 +37,6 @@
       #/new          新しい文字起こし（3ステップ：ファイル → 設定 → 開始）と処理状況
       #/data         処理済みデータの一覧
       #/data/<id>    1件の作業画面（発話の編集 / 会話・話者 / 議事録・アウトライン / ファイル・管理）
-      #/analysis/<id> 分析・可視化
       #/speakers     話者管理
       #/presets      プリセットデータ
       #/folders      フォルダー管理
@@ -53,8 +52,8 @@
       </a>
       <nav class="app-nav" aria-label="画面の切り替え" role="tablist">
         <button id="show-new-button" class="view-tab active" type="button" role="tab" aria-controls="create-view" aria-selected="true"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/01-transcription.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/01-transcription.svg') }}" alt=""></span>新規作成</button>
-        <button id="show-library-button" class="view-tab" type="button" role="tab" aria-controls="processed-data-hub library-card analysis-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/109-project.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/109-project.svg') }}" alt=""></span>データ</button>
-        <button id="show-analysis-button" class="view-tab" type="button" role="tab" aria-controls="analysis-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/21-statistics.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/21-statistics.svg') }}" alt=""></span>分析</button>
+        <button id="show-library-button" class="view-tab" type="button" role="tab" aria-controls="processed-data-hub library-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/109-project.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/109-project.svg') }}" alt=""></span>データ</button>
+
         <button id="show-speakers-button" class="view-tab" type="button" role="tab" aria-controls="speaker-registry-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/055-speaker-profile.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/055-speaker-profile.svg') }}" alt=""></span>話者データ</button>
         <button id="prior-presets-button" class="view-tab" type="button" role="tab" aria-controls="preset-data-card" aria-selected="false" data-prior-view="presets">プリセットデータ</button>
         <button id="prior-folders-button" class="view-tab" type="button" role="tab" aria-controls="library-group-dialog" aria-selected="false" data-prior-view="folders">フォルダー管理</button>
@@ -66,11 +65,8 @@
           <i class="job-chip-dot" aria-hidden="true"></i>
           <span id="job-chip-label">処理中</span>
         </button>
-        <button id="analysis-job-chip" class="job-chip analysis-job-chip" type="button" hidden>
-          <i class="job-chip-dot" aria-hidden="true"></i>
-          <span id="analysis-job-chip-label">分析中</span>
-        </button>
-        <button id="orchestration-chip" class="job-chip" type="button" hidden><i class="job-chip-dot" aria-hidden="true"></i><span id="orchestration-chip-label">自律分析</span></button>
+
+
         <div class="app-status desktop-only" aria-label="トークン設定状況">
           <span id="status-hf" class="status-pill loading">Hugging Face</span>
           <button id="status-openai" class="status-pill loading" type="button" data-model-provider="openai">OpenAI</button>
@@ -93,7 +89,7 @@
   <main class="app-main">
     <nav id="processed-data-hub" class="processed-data-hub" aria-label="処理済みデータの切り替え" role="tablist" hidden>
       <button id="show-library-list-button" class="processed-data-tab active" type="button" role="tab" aria-controls="library-card" aria-selected="true">データ一覧</button>
-      <button id="show-library-analysis-button" class="processed-data-tab" type="button" role="tab" aria-controls="analysis-card" aria-selected="false">分析・可視化</button>
+
       <div class="processed-data-tools" role="group" aria-label="データの並べ替えと検索">
         <label class="processed-data-tool">
           <span>並べ替え</span>
@@ -138,7 +134,7 @@
 {% include "views/result.html" %}
 
     <!-- ===== 分析・可視化 ===== -->
-{% include "views/analysis.html" %}
+
 
     <!-- ===== 話者管理 ===== -->
 {% include "views/speakers.html" %}
@@ -220,12 +216,7 @@
           <small>使用モデル：<code data-provider-model="lmstudio">—</code></small>
           <button class="secondary-button compact-button" type="button" data-model-provider="lmstudio">モデルを変更</button>
         </div>
-        {% if obsidian_enabled %}
-        <div class="connection-row">
-          <span class="status-pill loading" data-obsidian-watcher-pill>Obsidian監視 確認中</span>
-          <small data-obsidian-watcher-detail>監視の実行状態を確認しています。</small>
-        </div>
-        {% endif %}
+
         <div class="connection-row">
           <span class="status-pill ready">バックアップ</span>
           <small><label><input id="backup-include-media" type="checkbox"> 元の音声・動画も含める</label><br><span id="backup-message">DB・分析結果・Vaultを同じ時点で runtime/backups に保存します。APIキー・出力ファイル・Knowledge Builderは含めません。</span></small>
@@ -252,93 +243,7 @@
     </form>
   </dialog>
 
-  {% if obsidian_enabled %}
-  <div id="obsidian-finishing-activity" class="ai-finishing-activity obsidian-finishing-activity" role="status" hidden>
-    <div class="finishing-orbit" aria-hidden="true"></div>
-    <div><strong>ObsidianのAI仕上げ</strong><p data-obsidian-detail></p></div>
-  </div>
-  {% endif %}
 
-
-
-  {% if analysis_enabled %}
-  <dialog id="analysis-run-dialog" class="app-dialog analysis-run-dialog" aria-labelledby="analysis-run-dialog-title">
-    <form id="analysis-run-form" method="dialog">
-      <div class="app-dialog-header">
-        <h2 id="analysis-run-dialog-title">基礎分析の実行設定</h2>
-        <p>発話量・会話の時間構造を集計します。Transformerテーマ分析とAI見解は「内容・文脈検索」から個別に実行します。</p>
-      </div>
-      <div class="orchestration-entry"><div><strong>Core / Handler 自律分析</strong><p>問いに合わせて解釈・検証・批判を反復。AIとタスクの動きを確認できます。</p></div><button id="orchestration-open" class="secondary-button" type="button">自律分析を設定</button></div>
-      <div id="analysis-run-dialog-message" class="alert" hidden></div>
-      <div class="analysis-run-mode-picker">
-        <label><input name="analysis_run_mode" type="radio" value="automatic" checked><span>自動実行</span></label>
-        <label><input name="analysis_run_mode" type="radio" value="manual"><span>手動実行</span></label>
-      </div>
-      <fieldset class="analysis-display-mode">
-        <legend>表示する詳しさ</legend>
-        <label><input name="analysis_display_mode" type="radio" value="simple" checked>簡単</label>
-        <label><input name="analysis_display_mode" type="radio" value="detail">詳細</label>
-      </fieldset>
-      <div id="analysis-manual-definition" class="analysis-manual-definition" hidden>
-        <h3>測定を少数で確かめて採用</h3>
-        <label class="field"><span>測定プリセット</span><select id="analysis-definition-preset">
-          <option value="text_length">文字数（発話ごと）</option>
-          <option value="duration">発話時間（秒）</option>
-          <option value="speaker_frequency">話者ID別の度数</option>
-          <option value="role_frequency">役割別の度数</option>
-        </select></label>
-        <p id="analysis-definition-summary"></p>
-        <div data-analysis-detail hidden>
-          <label class="field"><span>定義名</span><input id="analysis-definition-name" type="text"></label>
-          <label class="field"><span>定義ID</span><input id="analysis-definition-id" type="text"></label>
-          <label class="field"><span>説明</span><input id="analysis-definition-description" type="text"></label>
-          <label class="field"><span>出力列</span><input id="analysis-definition-output" type="text"></label>
-          <p id="analysis-definition-conditions"></p>
-        </div>
-        <p id="analysis-definition-limits"></p>
-        <div class="analysis-definition-actions">
-          <button id="analysis-definition-save" type="button" class="secondary-button">1. 下書きを保存</button>
-          <button id="analysis-definition-trial" type="button" class="secondary-button" disabled>2. 最大20件を試す</button>
-        </div>
-        <div id="analysis-definition-trial-result" role="status" aria-live="polite"></div>
-        <label class="check-row"><input id="analysis-definition-confirm" type="checkbox" disabled><span>固定された試行行・欠測・測定の限界を確認しました</span></label>
-        <button id="analysis-definition-adopt" type="button" class="secondary-button" disabled>3. 確認した定義を採用</button>
-        <p id="analysis-definition-state" role="status"></p>
-        <button id="analysis-definition-inspect" type="button" class="secondary-button" hidden>保存状態を再確認</button>
-      </div>
-        <div class="analysis-manual-definition" aria-labelledby="analysis-advisor-heading">
-          <h3 id="analysis-advisor-heading">計画担当 O01</h3>
-          <p>分析目的から、既存の発話量・会話の時間構造のうち優先して確認する手法と確認事項を提案します。クラウドを選ぶと分析目的（貼り付けた本文を含む）・集計件数・手法カードを送ります。発話本文を自動では追加しません。</p>
-          <label class="field" for="analysis-advisor-objective"><span>分析目的</span><input id="analysis-advisor-objective" type="text" maxlength="500" placeholder="例：参加の偏りと話者交替を確認したい"></label>
-          <label class="field" for="analysis-advisor-engine"><span>判断に使うモデル</span>
-            <select id="analysis-advisor-engine">
-              <option value="transformer">Transformer（実行環境）</option>
-              <option value="lmstudio">LM Studio（設定された接続先）</option>
-              <option value="openai">OpenAI（クラウド）</option>
-              <option value="google">Google Gemini（クラウド）</option>
-            </select>
-          </label>
-          <label id="analysis-advisor-model-field" class="field" for="analysis-advisor-model" hidden><span>モデルID（空欄なら設定済みモデル）</span><input id="analysis-advisor-model" type="text" maxlength="200"></label>
-          <button id="analysis-advisor-propose" class="secondary-button" type="button">計画候補を生成</button>
-          <div id="analysis-advisor-flow" aria-label="計画候補の生成経路" hidden></div>
-          <div id="analysis-advisor-result" role="status" aria-live="polite"></div>
-        </div>
-        <p id="analysis-run-plan-summary" class="field-note"></p>
-        <label class="check-row"><input id="analysis-run-publish" type="checkbox"><span>実行環境の4つのVault（Research・Input・Orchestrator・Visualization）へ保存する。OFFでは本体成果物のみ保存</span></label>
-      <div class="app-dialog-actions">
-        <button id="close-analysis-run-dialog" class="secondary-button" type="button">閉じる</button>
-        <button id="analysis-run-start" class="primary-button small" type="submit">全件分析を開始</button>
-      </div>
-    </form>
-  </dialog>
-  {% endif %}
-
-  {% if analysis_enabled %}
-  {% include 'views/analysis-orchestration.html' %}
-  {% endif %}
-  {% if analysis_enabled %}
-  {% include 'views/analysis-history.html' %}
-  {% endif %}
   {% for filename in application_scripts %}
   <script src="{{ url_for('static', filename=filename) }}" defer></script>
   {% endfor %}

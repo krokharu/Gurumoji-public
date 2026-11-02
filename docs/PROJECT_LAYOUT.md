@@ -12,11 +12,11 @@ Gurumoji/
 ├─ scripts/              起動・導入・診断・バックアップ等
 ├─ notebooks/            Colab
 ├─ docs/                 利用・運用手順
-│  └─ program-vault/     実行時の専門家・文献・スライド定義
+│  └─ program-vault/     保持指定の専門家・文献・スライド定義
 └─ runtime/              利用者データ（Git管理外）
 ```
 
-`runtime/data` にSQLite・メディア・分析結果・Obsidian Vault・台帳を保存します。`runtime/output` は文字起こし出力、`runtime/models` はモデル、`runtime/logs` はログ、`runtime/uploads` は一時アップロード、`runtime/backups` はバックアップです。
+`runtime/data` にSQLite・メディア・登録語を保存します。旧版の分析結果・Vault・台帳がある場合も削除しません。`runtime/output` は文字起こし出力、`runtime/models` はモデル、`runtime/logs` はログ、`runtime/uploads` は一時アップロード、`runtime/backups` はバックアップです。
 
 保存先は既存の `MOJIOKOSI_DATA_DIR`、`MOJIOKOSI_OUTPUT_DIR`、`MOJIOKOSI_BACKUP_DIR` で指定できます。個人のパスや資格情報をソースへ固定しません。
 

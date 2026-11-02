@@ -15,7 +15,6 @@ from typing import Any, Callable
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from ..ai_effort import normalize_efforts
-from ..features import OBSIDIAN_ENABLED
 from ..media_formats import ALLOWED_EXTENSIONS
 from ..services.ai.settings import (
     AI_PROVIDERS,
@@ -28,7 +27,6 @@ from ..services.media_files import safe_media_filename
 from ..services.outputs import job_output_directory
 from ..services.transcription.options import (
     ACTIVE_JOB_STATUSES,
-    AIST_EMOTION_MODEL_CHOICES,
     CONVERSATION_MODES,
     JobOptions,
     LANGUAGES,
@@ -189,10 +187,6 @@ def make_transcription_start(
             clean_transcript = parse_bool("clean_transcript", form=form)
             detect_names = parse_bool("detect_speaker_names", form=form)
             create_outline = parse_bool("create_outline", form=form)
-            # The Obsidian deferral is withdrawn from this release; every run finishes in place.
-            finish_in_obsidian = OBSIDIAN_ENABLED and parse_bool(
-                "finish_in_obsidian", default=not finishing_mode_value, form=form
-            )
             ai_efforts = normalize_efforts({
                 key: form.get("ai_effort_" + key, "auto")
                 for key in ("outline", "cleanup", "name_extract", "name_verify", "notation")
@@ -206,7 +200,6 @@ def make_transcription_start(
                 detect_names = False
                 create_outline = False
                 jev_compare = False
-                finish_in_obsidian = False
             elif transcript_finishing_mode == "recommended":
                 # Jev triages each utterance and the configured cleanup effort
                 # controls how much context the finishing LLM may read and rewrite.
@@ -216,7 +209,6 @@ def make_transcription_start(
             elif transcript_finishing_mode == "advanced":
                 clean_transcript = True
                 detect_names = True
-                finish_in_obsidian = False
                 if provider == "none":
                     raise ValueError("高度モードでは使用するAIを選択してください。")
             if provider == "none":
@@ -228,17 +220,12 @@ def make_transcription_start(
             elif jev_compare:
                 # The comparison needs a result from the existing finishing AI.
                 clean_transcript = True
-            emotion_analysis = parse_bool("emotion_analysis", form=form)
-            emotion_model = form.get("emotion_model", "kushinada").strip() or "kushinada"
-            if emotion_model not in AIST_EMOTION_MODEL_CHOICES:
-                raise ValueError("感情分析モデルの指定が不正です。")
             token_config = load_token_config()
             if transcription_backend == "whisperx" and not token_config.huggingface_token:
                 raise ValueError("tokens.json に huggingface_token を設定してください。")
             recommended_cleanup = bool(
                 transcript_finishing_mode == "recommended"
                 and provider != "none"
-                and not finish_in_obsidian
                 and ai_efforts.get("cleanup") != "off"
                 and token_config.typesafe_api_key
             )
@@ -247,7 +234,7 @@ def make_transcription_start(
             ai_api_key = ""
             ai_model = ""
             ai_base_url = ""
-            if clean_transcript or recommended_cleanup or detect_names or create_outline or (ai_efforts["notation"] != "off" and not finish_in_obsidian):
+            if clean_transcript or recommended_cleanup or detect_names or create_outline or (ai_efforts["notation"] != "off"):
                 ai_api_key, ai_model = configured_ai_credentials(token_config, provider)
                 if provider == "lmstudio":
                     ai_base_url = lmstudio_base_url(token_config.lmstudio_base_url)
@@ -310,14 +297,11 @@ def make_transcription_start(
                 clean_transcript=clean_transcript,
                 detect_speaker_names=detect_names,
                 create_outline=create_outline,
-                emotion_analysis=emotion_analysis,
-                emotion_model=emotion_model,
                 ai_api_key=ai_api_key,
                 ai_model=ai_model,
                 ai_base_url=ai_base_url,
                 owns_output_dir=True,
                 ai_efforts=ai_efforts,
-                finish_in_obsidian=finish_in_obsidian,
                 conversation_mode=conversation_mode,
                 custom_vocabulary=custom_vocabulary,
                 prior_speakers=prior_speakers,
@@ -327,7 +311,6 @@ def make_transcription_start(
                 jev_api_key=token_config.typesafe_api_key,
                 jev_model=token_config.typesafe_model,
                 transcript_finishing_mode=transcript_finishing_mode,
-                write_word_cloud=parse_bool("write_word_cloud", form=form),
                 generate_meeting_minutes=parse_bool("generate_meeting_minutes", form=form),
                 transcription_backend=transcription_backend,
             )

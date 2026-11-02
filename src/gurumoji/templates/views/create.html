@@ -337,11 +337,7 @@
               <strong class="settings-choice" data-settings-value="finishing"><span class="settings-choice-main"><span class="settings-choice-badge is-off" data-choice-finishing-state>しない</span><span data-choice-finishing-model>使用モデルなし</span></span><small data-choice-finishing-detail>AI仕上げを使わない</small></strong>
               <em>変更</em>
             </button>
-            <button type="button" class="settings-summary-row" data-open-panel="emotion">
-              <span class="settings-summary-label">音声感情分析</span>
-              <strong data-settings-value="emotion">実行しない</strong>
-              <em>変更</em>
-            </button>
+
             <button type="button" class="settings-summary-row" data-open-panel="output">
               <span class="settings-summary-label">出力形式</span>
               <strong data-settings-value="output">TXT / JSON / SRT</strong>
@@ -514,13 +510,7 @@
                   <p id="finishing-mode-hint" class="conversation-mode-hint">AIで整える場合は、使用するサービスとモデルを確認してください。</p>
                 </fieldset>
                 <div class="ai-box">
-                  {% if obsidian_enabled %}
-                  <label class="check-row obsidian-mode">
-                    <input name="finish_in_obsidian" type="hidden" value="0">
-                    <input id="finish-in-obsidian" name="finish_in_obsidian" type="checkbox" value="1" checked>
-                    <span><strong>Obsidianに保存してあとで整える</strong><small>文字起こし全文と作業ノートを保存します。文章の仕上げは後から行えます。</small></span>
-                  </label>
-                  {% endif %}
+
                   <label class="field provider-field">
                     <span>AI仕上げに使うサービス</span>
                     <select id="ai-provider" name="ai_provider">
@@ -563,30 +553,6 @@
               </div>
             </details>
 
-            <details id="panel-emotion" class="settings-panel" data-settings-panel="emotion">
-              <summary>
-                <span>音声感情分析 <em>任意</em></span>
-                <small>AISTの日本語音声モデル「くしなだ」「いざなみ」</small>
-              </summary>
-              <div id="setup-emotion" class="settings-panel-body">
-                <div class="emotion-box">
-                  <label class="check-row">
-                    <input name="emotion_analysis" type="hidden" value="0">
-                    <input id="emotion-analysis" name="emotion_analysis" type="checkbox" value="1">
-                    <span><strong>AIST音声感情分析を実行</strong><small>文字ではなく音声情報から、各会話セグメントに喜び・怒り・悲しみ・平常などのラベルを付けます。</small></span>
-                  </label>
-                  <label class="field">
-                    <span>感情分析モデル</span>
-                    <select id="emotion-model" name="emotion_model">
-                      <option value="kushinada" selected>くしなだ（推奨・高精度）</option>
-                      <option value="izanami">いざなみ（比較用）</option>
-                      <option value="both">両方を実行（重い）</option>
-                    </select>
-                  </label>
-                </div>
-                <p class="privacy-note">AIST感情分析はローカル実行です。初回のみHugging Faceからgatedモデルを取得するため、各モデルページで利用条件への同意が必要です。</p>
-              </div>
-            </details>
 
             <details id="panel-output" class="settings-panel" data-settings-panel="output">
               <summary>
@@ -626,7 +592,7 @@
               <div class="stitch-tile"><button type="button" class="stitch-tile-main" data-tile="finishing"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/06-transcript-edit.svg') }}" alt="" aria-hidden="true">AI仕上げ</span><b class="lv" data-lv></b></button><button type="button" class="stitch-tile-more" data-open-panel="finishing" aria-label="AI仕上げの詳細設定">⋯</button></div>
               <div class="stitch-tile"><button type="button" class="stitch-tile-main" data-tile="volume"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/036-volume.svg') }}" alt="" aria-hidden="true">音量調節</span><b class="lv" data-lv></b></button><button type="button" class="stitch-tile-more" data-open-panel="recognition" aria-label="音声前処理の詳細設定">⋯</button></div>
               <div class="stitch-tile"><button type="button" class="stitch-tile-main" data-tile="model"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/125-agent-status.svg') }}" alt="" aria-hidden="true">モデル</span><b class="lv" data-lv></b></button><button type="button" class="stitch-tile-more" data-open-panel="recognition" aria-label="認識モデルの詳細設定">⋯</button></div>
-              <div class="stitch-tile stitch-tile-toggle"><label><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/20-emotion.svg') }}" alt="" aria-hidden="true">感情解析</span><span class="stitch-switch"><input id="stitch-emotion" type="checkbox"><i></i></span></label><button type="button" class="stitch-tile-more" data-open-panel="emotion" aria-label="感情解析の詳細設定">⋯</button></div>
+              <div class="stitch-tile stitch-tile-toggle"><label><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/20-emotion.svg') }}" alt="" aria-hidden="true">感情解析</span><span class="stitch-switch"><input id="stitch-emotion" type="checkbox"><i></i></span></label></div>
               <button id="stitch-confirm-toggle" class="stitch-confirm-toggle" type="button" aria-expanded="false" aria-controls="setup-launch"><span>確認</span><i aria-hidden="true"></i></button>
               <button id="stitch-run-button" class="stitch-execute" type="button"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/031-play.svg') }}" alt="" aria-hidden="true"><span>実行</span></button>
             </div>
@@ -640,7 +606,7 @@
           </div>
           <section class="launch-destinations" aria-label="テキスト送信先の最終確認">
             <strong data-text-destinations>今回のテキスト送信先: 確認中</strong>
-            {% if obsidian_enabled %}<p id="deferred-destination-note" hidden>Obsidianの後処理は別途実行します。後処理のAI選択と追加のTypeSafe送信を実行前に確認してください。</p>{% endif %}
+
           </section>
           <div class="launch-mobile-review mobile-only" aria-label="開始前の確認">
             <div><span>入力ファイル</span><strong data-review-source>未選択</strong></div>
@@ -665,7 +631,7 @@
               <span class="launch-review-action" aria-hidden="true">変更 →</span>
             </button>
             <button class="launch-review-card" type="button" data-open-panel="finishing">
-              <span>AI仕上げ・感情分析</span>
+              <span>AI仕上げ</span>
               <strong data-review-finish>しない・使用モデルなし</strong>
               <span class="launch-review-action" aria-hidden="true">変更 →</span>
             </button>

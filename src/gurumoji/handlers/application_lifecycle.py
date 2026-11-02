@@ -23,7 +23,6 @@ class ApplicationLifecycle:
         import_outputs: Callable[[], None],
         report_edit_warning: Callable[[str], None],
         report_delete_warning: Callable[[str], None],
-        spawn_watcher: Callable[[], tuple[threading.Event, threading.Thread]],
         spawn_media_worker: Callable[[], tuple[threading.Event, threading.Thread]] | None = None,
     ) -> None:
         self._acquire_instance_lock = acquire_instance_lock
@@ -37,11 +36,9 @@ class ApplicationLifecycle:
         self._import_outputs = import_outputs
         self._report_edit_warning = report_edit_warning
         self._report_delete_warning = report_delete_warning
-        self._spawn_watcher = spawn_watcher
         self._spawn_media_worker = spawn_media_worker
         self._media_worker: tuple[threading.Event, threading.Thread] | None = None
         self._worker_lock = threading.Lock()
-        self._watcher: tuple[threading.Event, threading.Thread] | None = None
 
     def initialize(self) -> None:
         if not self._acquire_instance_lock():
@@ -62,26 +59,22 @@ class ApplicationLifecycle:
             self._release_instance_lock()
             raise
 
-    def start_watcher(self) -> tuple[threading.Event, threading.Thread]:
+    def start_workers(self) -> None:
+        """同じプロセス内で補助ワーカーを一度だけ起動する。"""
         with self._worker_lock:
             if self._spawn_media_worker is not None and self._media_worker is None:
                 self._media_worker = self._spawn_media_worker()
-            if self._watcher is not None and self._watcher[1].is_alive():
-                return self._watcher
-            self._watcher = self._spawn_watcher()
-            return self._watcher
 
-    def stop_watcher(self, *, timeout: float = 2) -> None:
+    def stop_workers(self, *, timeout: float = 2) -> None:
+        """起動した補助ワーカーを停止する。"""
         with self._worker_lock:
-            watcher = self._watcher
-            self._watcher = None
             media_worker = self._media_worker
-        workers = [value for value in (watcher, media_worker) if value is not None]
-        for stop, _worker in workers:
+            self._media_worker = None
+        if media_worker is not None:
+            stop, worker = media_worker
             stop.set()
-        for _stop, worker in workers:
             worker.join(timeout=timeout)
 
     def shutdown(self) -> None:
-        self.stop_watcher()
+        self.stop_workers()
         self._release_instance_lock()

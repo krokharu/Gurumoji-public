@@ -22,6 +22,15 @@ def build_application(core: ModuleType) -> Flask:
     from .notation_routes import register_notation_routes
 
     register_notation_routes(flask_app, service=core.notation_workflows)
+    from .transcript_routes import register_transcript_routes
+
+    register_transcript_routes(
+        flask_app,
+        update_item=core.update_library_from_payload,
+        connect=core.database_connection,
+        write_lock=core.library_write_lock,
+        row_segments=core.row_segments,
+    )
     core.register_request_security(
         flask_app,
         remote_access_enabled=lambda: core.REMOTE_ACCESS_ENABLED,
@@ -64,26 +73,8 @@ def build_application(core: ModuleType) -> Flask:
         system_activity_snapshot=lambda: core.system_activity_snapshot(),
         library_diagnostics=core.library_storage_diagnostics,
         media_metadata_status=lambda: core.media_metadata_backfill.snapshot(),
-        obsidian_watcher_status=lambda: {
-            **core.obsidian_watcher_status.snapshot(),
-            "warnings": core._vault_nesting_warnings(),
-        },
         create_backup=lambda include_media: core.create_data_backup(include_media),
     )
-    core.register_analysis_routes(
-        flask_app,
-        core.analysis_queries,
-        core.analysis_commands,
-        core.AI_MODEL_PROVIDERS,
-    )
-    core.register_orchestration_routes(
-        flask_app,
-        core.analysis_orchestration_service,
-        core.prepare_orchestration,
-        core.analysis_orchestration_publication_service,
-        history_viewer=core.analysis_history_service,
-    )
-    core.register_analysis_slides_routes(flask_app, core.analysis_slides_service)
     core.register_speaker_routes(
         flask_app,
         core.speaker_registry_handler,
@@ -97,23 +88,6 @@ def build_application(core: ModuleType) -> Flask:
         flask_app, core.outline_rerun_handler, core.AI_MODEL_PROVIDERS
     )
     core.register_job_routes(flask_app, core.job_handler)
-    flask_app.jinja_env.globals["obsidian_enabled"] = core.OBSIDIAN_ENABLED
-    if core.OBSIDIAN_ENABLED:
-        core.register_obsidian_routes(
-            flask_app,
-            local_access_allowed=core.local_path_access_allowed,
-            library_row=core.library_row,
-            row_segments=core.row_segments,
-            workbench=core.obsidian_workbench,
-            normalize_efforts=core.normalize_efforts,
-            write_lock=core.library_write_lock,
-            meeting_export_row=core.meeting_minutes_export_row,
-            meeting_fingerprint=core.meeting_minutes_fingerprint,
-            archive_meeting_minutes=core.archive_meeting_minutes,
-            publish_meeting_minutes=core.publish_meeting_minutes_to_obsidian,
-            log_warning=flask_app.logger.warning,
-            watcher_status=lambda: core.obsidian_watcher_status.snapshot(),
-        )
     core.register_library_group_routes(
         flask_app,
         database_connection=lambda *args, **kwargs: core.database_connection(
@@ -136,9 +110,6 @@ def build_application(core: ModuleType) -> Flask:
         database_connection=lambda *args, **kwargs: core.database_connection(
             *args, **kwargs
         ),
-        group_analysis_for_row=lambda *args, **kwargs: core.group_analysis_for_row(
-            *args, **kwargs
-        ),
         library_row=lambda *args, **kwargs: core.library_row(*args, **kwargs),
         list_speaker_registry=core.list_speaker_registry,
         meeting_minutes_export_row=core.meeting_minutes_export_row,
@@ -149,24 +120,6 @@ def build_application(core: ModuleType) -> Flask:
         row_speaker_profiles=lambda *args, **kwargs: core.row_speaker_profiles(
             *args, **kwargs
         ),
-    )
-    core.register_analysis_view_routes(
-        flask_app,
-        AnalysisConflictError=core.AnalysisConflictError,
-        analysis_archive_store=lambda *args, **kwargs: core.analysis_archive_store(
-            *args, **kwargs
-        ),
-        build_research_analysis=lambda *args, **kwargs: core.build_research_analysis(
-            *args, **kwargs
-        ),
-        group_analysis_for_row=lambda *args, **kwargs: core.group_analysis_for_row(
-            *args, **kwargs
-        ),
-        library_row=lambda *args, **kwargs: core.library_row(*args, **kwargs),
-        public_diagnostic_text=core.public_diagnostic_text,
-        save_group_analysis=core.save_group_analysis,
-        transformer_semantic_search=lambda *args,
-        **kwargs: core.transformer_semantic_search(*args, **kwargs),
     )
     core.register_ai_routes(
         flask_app,
@@ -180,11 +133,6 @@ def build_application(core: ModuleType) -> Flask:
         flask_app,
         media_directory=lambda: core.MEDIA_DIRECTORY,
         _delete_library_item_locked=core._delete_library_item_locked,
-        analysis_archive_store=lambda *args, **kwargs: core.analysis_archive_store(
-            *args, **kwargs
-        ),
-        archive_source_stamp=core.archive_source_stamp,
-        build_interview_comparison=core.build_interview_comparison,
         database_connection=lambda *args, **kwargs: core.database_connection(
             *args, **kwargs
         ),
@@ -192,8 +140,6 @@ def build_application(core: ModuleType) -> Flask:
         generate_video_thumbnail=lambda *args, **kwargs: core.generate_video_thumbnail(
             *args, **kwargs
         ),
-        generate_word_cloud_thumbnail=core.generate_word_cloud_thumbnail,
-        interview_comparison_request=core.interview_comparison_request,
         library_public=core.library_public,
         library_row=lambda *args, **kwargs: core.library_row(*args, **kwargs),
         library_write_lock=core.library_write_lock,
@@ -211,23 +157,9 @@ def build_application(core: ModuleType) -> Flask:
         restore_library_trash=lambda entry_id: core.restore_library_trash(entry_id),
         purge_library_trash=lambda entry_id: core.purge_library_trash(entry_id),
     )
-    from .research_workspace_routes import register_research_workspace_routes
 
-    register_research_workspace_routes(
-        flask_app,
-        store=lambda: core.analysis_archive_store(),
-        connect=lambda: core.database_connection(),
-        find_item=lambda item_id: core.library_row(item_id),
-        write_lock=core.library_write_lock,
-        backup=lambda: core.create_data_backup(False),
-        local_allowed=core.local_path_access_allowed,
-        row_segments=lambda row: core.row_segments(row),
-        row_profiles=lambda *args: core.row_speaker_profiles(*args),
-        row_session=lambda row: core.row_session_profile(row),
-    )
     flask_app.jinja_env.globals.update(
-        analysis_enabled=core.ANALYSIS_ENABLED,
-        application_scripts=application_scripts(core.ANALYSIS_ENABLED),
-        application_styles=application_styles(core.ANALYSIS_ENABLED),
+        application_scripts=application_scripts(),
+        application_styles=application_styles(),
     )
     return flask_app

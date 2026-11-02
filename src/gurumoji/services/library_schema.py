@@ -11,12 +11,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .. import transcript_preparation as preparation
-from ..analysis_pipeline import initialize_pipeline_store
-from ..analysis_orchestration import initialize_orchestration_store
-from .analysis_orchestration_publication import initialize_orchestration_publication_store
-from ..analysis_store import initialize_store
 from ..text_utils import json_load
-from . import conversation_projection, media_assets, vocabulary_store, segment_embeddings, data_catalog, research_notes, cross_search
+from . import conversation_projection, media_assets, vocabulary_store, data_catalog
 from .sqlite_policy import configure_journal
 from .ai.settings import is_colab_runtime
 
@@ -219,63 +215,7 @@ def make_library_schema(
                 connection.execute(
                     "ALTER TABLE library_items ADD COLUMN segment_classification_json TEXT NOT NULL DEFAULT '{}'"
                 )
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS analysis_insight_requests (
-                    request_id TEXT PRIMARY KEY, item_id TEXT NOT NULL,
-                    source_revision INTEGER NOT NULL, analysis_revision INTEGER NOT NULL,
-                    fingerprint TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL,
-                    status TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0,
-                    message TEXT NOT NULL DEFAULT '', usage_json TEXT NOT NULL DEFAULT '{}',
-                    created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-                )
-            """)
-            connection.execute("CREATE INDEX IF NOT EXISTS insight_requests_item ON analysis_insight_requests(item_id, created_at)")
-            connection.execute("""
-                UPDATE analysis_insight_requests SET status = 'interrupted',
-                    message = 'アプリが再起動されました。必要な場合は再生成してください。'
-                WHERE status IN ('queued', 'running', 'cancelling')
-            """)
-            connection.execute("""
-                CREATE TABLE IF NOT EXISTS transformer_analysis_requests (
-                    request_id TEXT PRIMARY KEY, item_id TEXT NOT NULL,
-                    source_revision INTEGER NOT NULL, analysis_revision INTEGER NOT NULL,
-                    fingerprint TEXT NOT NULL, model TEXT NOT NULL,
-                    max_topics INTEGER NOT NULL, min_topic_size INTEGER NOT NULL,
-                    topic_count INTEGER NOT NULL DEFAULT 0,
-                    mode TEXT NOT NULL DEFAULT 'auto',
-                    min_similarity REAL NOT NULL DEFAULT 0,
-                    status TEXT NOT NULL, progress INTEGER NOT NULL DEFAULT 0,
-                    message TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-                )
-            """)
-            transformer_request_columns = {
-                str(row["name"])
-                for row in connection.execute("PRAGMA table_info(transformer_analysis_requests)").fetchall()
-            }
-            if "topic_count" not in transformer_request_columns:
-                connection.execute(
-                    "ALTER TABLE transformer_analysis_requests "
-                    "ADD COLUMN topic_count INTEGER NOT NULL DEFAULT 0"
-                )
-            if "mode" not in transformer_request_columns:
-                connection.execute(
-                    "ALTER TABLE transformer_analysis_requests "
-                    "ADD COLUMN mode TEXT NOT NULL DEFAULT 'auto'"
-                )
-            if "min_similarity" not in transformer_request_columns:
-                connection.execute(
-                    "ALTER TABLE transformer_analysis_requests "
-                    "ADD COLUMN min_similarity REAL NOT NULL DEFAULT 0"
-                )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS transformer_requests_item "
-                "ON transformer_analysis_requests(item_id, created_at)"
-            )
-            connection.execute("""
-                UPDATE transformer_analysis_requests SET status = 'interrupted',
-                    message = 'アプリが再起動されました。必要な場合は再実行してください。'
-                WHERE status IN ('queued', 'running', 'cancelling')
-            """)
+            # 旧版の解析テーブルは保持し、新規作成や状態更新は行わない。
             connection.execute("UPDATE library_items SET write_json = 1 WHERE write_json <> 1")
             legacy_session_rows = connection.execute(
                 "SELECT id, session_profile_json FROM library_items "
@@ -389,18 +329,11 @@ def make_library_schema(
                     "ADD COLUMN content_sha256 TEXT NOT NULL DEFAULT ''"
                 )
             ensure_output_import_provenance_schema(connection)
-            initialize_store(connection)
-            initialize_pipeline_store(connection)
-            initialize_orchestration_store(connection)
-            initialize_orchestration_publication_store(connection)
             preparation.initialize(connection)
             vocabulary_store.initialize(connection)
             conversation_projection.initialize(connection)
             data_catalog.initialize(connection)
             media_assets.initialize(connection)
-            segment_embeddings.initialize(connection)
-            research_notes.initialize(connection)
-            cross_search.initialize(connection)
             if repair_provenance:
                 repair_output_import_provenance(connection)
             for row in connection.execute("SELECT id, source_name FROM library_items").fetchall():

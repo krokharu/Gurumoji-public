@@ -70,7 +70,7 @@ if (effortRoot) {
     localEffortModel = null;
     syncAiEffortSettings();
   });
-  ['ai-provider', 'finish-in-obsidian', 'clean-transcript', 'detect-names', 'create-outline', 'jev-compare'].forEach(id => {
+  ['ai-provider', 'clean-transcript', 'detect-names', 'create-outline', 'jev-compare'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', syncAiEffortSettings);
   });
   document.querySelectorAll('[name="transcript_finishing_mode"]').forEach(input => input.addEventListener('change', syncAiEffortSettings));
@@ -240,31 +240,3 @@ function renderAiFinishingActivity(job) {
   title.textContent = job.stage_label || 'AI仕上げ中';
   panel.querySelector('[data-finishing-detail]').textContent = job.message || 'AIの応答を待っています…';
 }
-
-// Poll only the displayed conversation; never start a finishing operation here.
-let obsidianPollBusy = false;
-setInterval(async () => {
-  const panel = document.querySelector('#obsidian-finishing-activity');
-  if (!panel || obsidianPollBusy || document.hidden) return;
-  const itemId = typeof currentJobId === 'undefined' ? '' : currentJobId;
-  if (!itemId) { panel.hidden = true; return; }
-  obsidianPollBusy = true;
-  try {
-    const response = await apiFetch(`/api/library/${encodeURIComponent(itemId)}/obsidian-finishing`, {
-      signal: AbortSignal.timeout(5000)
-    });
-    if (!response.ok) throw new Error('status unavailable');
-    const state = await response.json();
-    if (itemId !== currentJobId) { panel.hidden = true; return; }
-    // A prepared workbench is inert while the watcher is stopped (OBS-09); say so.
-    const watcher = state.watcher && typeof state.watcher === 'object' ? state.watcher : {};
-    const watcherDown = state.status !== 'unprepared' && watcher.state === 'failed';
-    panel.hidden = !watcherDown && ['unprepared', 'ready'].includes(state.status);
-    panel.setAttribute('aria-busy', String(!watcherDown && state.status === 'running'));
-    panel.querySelector('.finishing-orbit').hidden = watcherDown || state.status !== 'running';
-    panel.querySelector('[data-obsidian-detail]').textContent = watcherDown
-      ? [watcher.message, watcher.detail].filter(Boolean).join(' ')
-      : state.message;
-  } catch (_) { panel.hidden = true; }
-  finally { obsidianPollBusy = false; }
-}, 3000);
