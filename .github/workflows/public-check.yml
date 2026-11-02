@@ -1,0 +1,26 @@
+name: 公開範囲の読取専用検査
+
+on:
+  push:
+    branches: [public/release, public/develop]
+  pull_request:
+    branches: [public/release, public/develop]
+  workflow_dispatch:
+
+# 版更新・コミット・タグ・Releaseの作成権限を持たない検査。
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python .github/scripts/check_public_boundary.py
+      - run: python scripts/bump_version.py check
