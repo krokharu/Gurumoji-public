@@ -26,9 +26,20 @@ def rule_key(value):
 
 
 def morphology(segments):
-    from ..research_analysis import _linguistic_analysis
-    analysis = _linguistic_analysis(segments, {"morph_split_mode": "C"})
-    return analysis["morphemes"], analysis["engine"]
+    """表記の照合に必要な語形・読み・辞書形だけを取得する。"""
+    try:
+        from sudachipy import Dictionary
+    except ImportError:
+        return [], {"status": "unavailable", "morphology": "SudachiPy"}
+    tokenizer = Dictionary(dict="core").create(mode="C")
+    tokens = []
+    for segment in segments:
+        for token in tokenizer.tokenize(str(segment.get("text") or "")):
+            pos = token.part_of_speech()
+            tokens.append({"surface": token.surface(), "lemma": token.dictionary_form(),
+                           "reading": token.reading_form(), "upos": pos[0],
+                           "pos_detail": "-".join(pos)})
+    return tokens, {"status": "ready", "morphology": "SudachiPy"}
 
 
 def occurrences(text, word):

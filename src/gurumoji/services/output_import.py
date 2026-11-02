@@ -39,7 +39,6 @@ def make_output_import(
     default_output_directory: Callable[[], Any],
     database_connection: Any,
     library_row: Any,
-    publish_input_vault: Any,
     upsert_library_item: Any,
 ) -> tuple[Callable[..., Any], ...]:
     def canonical_output_import_path(path: Path) -> str:
@@ -264,7 +263,6 @@ def make_output_import(
                         (canonical_path,),
                     )
                 known.add(item_id)
-                publish_input_vault(library_row(item_id), source_kind="imported")
             except (OSError, ValueError, TypeError) as exc:
                 # Never log transcript contents or abort startup for a bad import.
                 LOGGER.warning("出力JSONを取り込めないためスキップしました: %s (%s)",

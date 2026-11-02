@@ -160,7 +160,6 @@ def transcript_formatting_result(
         {"id": "context_cleanup", "label": "LLM文脈再校正", "status": stages.get("cleanup", "not_requested")},
         {"id": "jev", "label": "Jev比較", "status": stages.get("jev_comparison", "not_requested")},
         {"id": "notation", "label": "表記ゆれの統一", "status": stages.get("notation", "off")},
-        {"id": "transformer", "label": "ローカルTransformer（分析画面）", "status": "available_after_transcription"},
     ]
     introductions = [
         {"speaker": str(label), "name": str(name), "status": "verified"}

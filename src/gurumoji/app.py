@@ -35,15 +35,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 # app.py is the composition root. Besides what it wires together, it
 # re-exports names that tests, scripts and the Colab notebook reach as
 # app.<name>; pyflakes reports those as unused imports.
-from .research_analysis import build_research_analysis as _build_research_analysis
 from .services import conversation_projection, media_assets
-from .analysis_insights import search_kwic
-from .transformer_analysis import (
-    DEFAULT_MODEL as DEFAULT_TRANSFORMER_MODEL,
-    analyze_transformer_topics,
-    encode_texts as encode_transformer_texts,
-    semantic_search as transformer_semantic_search,
-)
 from .ai_finishing import (
     FINISHING_VERSION,
     clean_transcript as finish_clean_transcript,
@@ -56,44 +48,19 @@ from .jev_review import (
     attach_comparison as attach_jev_comparison,
     review_transcript as review_transcript_with_jev,
 )
-from .segment_classification import classify_with_jev
-from .obsidian_finishing import ObsidianWorkbench
 from .ai_effort import normalize_efforts
-from .analysis_method_registry import method_results
-from .analysis_store import AnalysisStore, StoreConflict
-from .analysis_pipeline import AnalysisPipelineService
-from .analysis_core import AnalysisContractError
-from .analysis_orchestration import AnalysisOrchestrationService, recover_orchestration_runs
-from .services.analysis_orchestration_adapters import make_orchestration_adapters, ADAPTER_VERSION as ORCHESTRATION_ADAPTER_VERSION
-from .services.analysis_orchestration_methods import run_orchestration_method
-from .services.analysis_orchestration_publication import (
-    AnalysisOrchestrationPublicationService, recover_orchestration_publications,
-)
-from .web.analysis_orchestration_routes import register_orchestration_routes
-from .services.analysis_history import AnalysisHistoryService
-from .services.analysis_slides import AnalysisSlidesService
-from .services.analysis_slide_templates import load_slide_templates
-from .web.analysis_slides_routes import register_analysis_slides_routes
-from .handlers.analysis_commands import AnalysisCommands, ComparisonRequestError
-from .handlers.analysis_queries import AnalysisQueries
 from .handlers.application_lifecycle import ApplicationLifecycle
 from .handlers.jobs import JobHandler
 from .handlers.speaker_registry import (
     SpeakerIdentificationHandler,
     SpeakerRegistryHandler,
 )
-from .web.analysis_routes import register_analysis_routes
-from .features import ANALYSIS_ENABLED, OBSIDIAN_ENABLED
 from .web.job_routes import register_job_routes
 from .web.outline_routes import register_outline_routes
 from .handlers.outline_rerun import OutlineRerunHandler, make_library_outline_rerun
-from .web.obsidian_routes import register_obsidian_routes
 from .web.speaker_routes import register_speaker_routes
 from .web.system_routes import register_system_routes
-from .services.obsidian_watcher import ObsidianWatcher, WatcherStatus
-from .services.obsidian_workflows import ObsidianWorkflowService
 from .services.transcription_reporting import TranscriptionReporter
-from .services.vault_publication import VaultPublicationService, whisper_settings
 from .services.ai import client as ai_client
 from .services.ai import transcript_finishing as ai_transcript_finishing
 from .services import durable_files
@@ -111,10 +78,8 @@ from .services.edit_transactions import (
     safe_edit_relative_path,
 )
 from .services import outputs
-from .services import group_analysis
 from .services import speaker_registry as speaker_registry_store
 from .services import training_corpus
-from .services import interview_comparison
 from .services.transcription import formatting as transcript_formatting
 from .services.transcription import job_runner as transcription_job_runner
 from .services.training_corpus import (
@@ -122,14 +87,6 @@ from .services.training_corpus import (
     training_events_from_connection,
 )
 from .services.speaker_registry import speaker_registry_csv_bytes
-from .services.group_analysis import (
-    ANALYSIS_CSV_FIELDS,
-    ANALYSIS_METHODS,
-    analysis_csv_rows,
-    analysis_csv_safe,
-    normalize_analysis_group_by,
-    text_mining_counter,
-)
 from .services.outputs import (
     rgb_to_ass_color,
     safe_output_stem,
@@ -150,7 +107,6 @@ from .services.durable_files import (
     windows_extended_path,
     posix_move_no_replace,
 )
-from .services import emotion as emotion_analysis
 from .services.meeting_minutes import (
     build_meeting_minutes,
     meeting_external_payload,
@@ -158,7 +114,6 @@ from .services.meeting_minutes import (
     normalize_meeting_minutes,
 )
 from .services.transcription import audio as transcription_audio
-from .services.emotion import aist_emotion_model_keys, build_emotion_analysis_summary
 from .services.transcription.segments import (
     TRIPLE_PASS_GAP_CONTEXT_SECONDS,
     TRIPLE_PASS_MIN_GAP_SECONDS,
@@ -187,13 +142,9 @@ from .services.transcription.audio import (
     AUDIO_PREPROCESS_PRESETS,
 )
 from .handlers.form_fields import parse_optional_float
-from .services.word_cloud import (
-    write_word_cloud,
-)
 from .web.library_group_routes import register_library_group_routes
 from .web.training_routes import register_training_routes
 from .web.export_routes import register_export_routes
-from .web.analysis_view_routes import register_analysis_view_routes
 from .web.ai_routes import register_ai_routes
 from .services.machine_profile import (
     detect_machine_profile,
@@ -230,17 +181,6 @@ from .services.speaker_identification import (
     speaker_identity_context_records,
 )
 from .handlers.speaker_identification import make_library_speaker_identification
-from .services.analysis_jobs import InsightCancelled
-from .services.analysis_jobs import make_insight_jobs
-from .services.analysis_jobs import make_insight_commands
-from .services.analysis_jobs import make_transformer_jobs
-from .services.analysis_jobs import make_transformer_commands
-from .services.analysis_archive import make_analysis_archive
-from .handlers.segment_classification import make_segment_classification_command
-from .services.analysis_pipeline_adapters import (
-    run_analysis_pipeline_method,
-)
-from .services.analysis_pipeline_adapters import make_analysis_pipeline_adapters, make_staged_initial_builder
 from .services.library_schema import make_library_schema
 from .services.library_store import make_library_store
 from .services.output_import import make_output_import
@@ -289,7 +229,6 @@ from .services.library_edits import (
 )
 from .services.library_edits import make_library_update
 from .web.library_deletion import make_library_deletion
-from .services.analysis_annotations import make_analysis_annotation_save
 
 
 os.environ.setdefault("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "1")
@@ -414,10 +353,6 @@ runtime = RuntimeState()
 jobs = runtime.jobs
 jobs_lock = runtime.jobs_lock
 library_write_lock = runtime.library_write_lock
-insight_jobs_lock = runtime.insight_jobs_lock
-insight_cancel_events = runtime.insight_cancel_events
-transformer_jobs_lock = runtime.transformer_jobs_lock
-transformer_cancel_events = runtime.transformer_cancel_events
 training_lock = runtime.training_lock
 file_dialog_lock = runtime.file_dialog_lock
 custom_vocabulary_lock = runtime.custom_vocabulary_lock
@@ -531,14 +466,6 @@ def copy_file_limited(source: Path, target: Path, maximum: int) -> int:
         target.unlink(missing_ok=True)
         raise ValueError("The selected media file is empty.")
     return total
-
-
-def _vault_nesting_warnings() -> list[str]:
-    from .vault_registry import nesting_warnings
-    try:
-        return nesting_warnings(Path(DATABASE_FILE).parent)
-    except OSError:
-        return []
 
 
 def runtime_info() -> dict[str, Any]:
@@ -676,7 +603,6 @@ def import_speaker_registry_csv(
     resolve_local_media_path,
     prepare_output_root,
     thumbnail_cache_path,
-    generate_word_cloud_thumbnail,
     generate_video_thumbnail,
 ) = make_media_files(
     default_output_directory=lambda: DEFAULT_OUTPUT_DIRECTORY,
@@ -725,51 +651,6 @@ def promote_staged_files(staging_dir: Path, output_dir: Path, staged_files: list
 
 # Group analysis composition boundary: the module computes, this layer supplies
 # the library row accessors and the database connection.
-def build_research_analysis(analysis):
-    from .research_analysis import derived_storage
-    from .services.derived_analysis_store import DATABASE
-    with derived_storage(DATABASE_FILE.parent / DATABASE):
-        return _build_research_analysis(analysis)
-
-
-def group_analysis_for_row(
-    row: sqlite3.Row,
-    *,
-    include_research_rows: bool = False,
-    execute: bool = True,
-    defer_research: bool = False,
-) -> dict[str, Any]:
-    from .research_analysis import derived_storage
-    from .services.derived_analysis_store import DATABASE
-    with derived_storage(DATABASE_FILE.parent / DATABASE):
-        return group_analysis.group_analysis_for_row(
-            row,
-            include_research_rows=include_research_rows,
-            execute=execute,
-            defer_research=defer_research,
-            connect=database_connection,
-            row_segments=row_segments,
-            row_original_segments=row_original_segments,
-            row_speaker_profiles=row_speaker_profiles,
-            row_session_profile=row_session_profile,
-            list_speaker_registry=list_speaker_registry,
-        )
-
-
-summarize_codebook_change, _save_group_analysis_locked = make_analysis_annotation_save(
-    AnalysisConflictError=AnalysisConflictError,
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    row_segments=lambda *args, **kwargs: row_segments(*args, **kwargs),
-)
-
-
-def save_group_analysis(item_id: str, payload: Any) -> dict[str, Any]:
-    with library_write_lock:
-        result = _save_group_analysis_locked(item_id, payload)
-        refresh_archive_index(item_id)
-        return result
 
 
 (
@@ -783,7 +664,6 @@ def save_group_analysis(item_id: str, payload: Any) -> dict[str, Any]:
     default_output_directory=lambda: DEFAULT_OUTPUT_DIRECTORY,
     database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
     library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    publish_input_vault=lambda *args, **kwargs: publish_input_vault(*args, **kwargs),
     upsert_library_item=lambda *args, **kwargs: upsert_library_item(*args, **kwargs),
 )
 
@@ -898,46 +778,10 @@ def write_subtitled_video_assets(
 
 
 def write_outputs(*args: Any, **kwargs: Any) -> list[Path]:
-    kwargs.setdefault("write_word_cloud", write_word_cloud)
-    kwargs.setdefault("emotion_csv_text", emotion_csv_text)
     return outputs.write_outputs(*args, **kwargs)
 
 
 # AIST emotion analysis composition boundary.
-def emotion_csv_text(segments: list[dict[str, Any]], speaker_names: dict[str, str]) -> str:
-    return emotion_analysis.emotion_csv_text(
-        segments, speaker_names, csv_safe=analysis_csv_safe
-    )
-
-
-def extract_emotion_segment_wavs(
-    audio_path: Path,
-    segments: list[dict[str, Any]],
-    work_dir: Path,
-    check_cancelled: Callable[[], None],
-) -> tuple[Path, list[dict[str, Any]]]:
-    return emotion_analysis.extract_emotion_segment_wavs(
-        audio_path, segments, work_dir, check_cancelled,
-        run_subprocess=run_cancellable_subprocess,
-    )
-
-
-def run_aist_emotion_analysis(
-    audio_path: Path,
-    segments: list[dict[str, Any]],
-    model_choice: str,
-    hf_token: str,
-    device: str,
-    work_dir: Path,
-    status: Callable[[str], None],
-    check_cancelled: Callable[[], None],
-) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    return emotion_analysis.run_aist_emotion_analysis(
-        audio_path, segments, model_choice, hf_token, device, work_dir, status,
-        check_cancelled,
-        runtime_directory=RUNTIME_DIRECTORY,
-        run_subprocess=run_cancellable_subprocess,
-    )
 
 
 def load_token_config(path: Path = TOKEN_FILE) -> TokenConfig:
@@ -1053,18 +897,6 @@ def clean_recommended_segments_with_ai(
     )
 
 
-def classify_segments_with_jev(
-    segments: list[dict[str, Any]], topics: list[dict[str, str]], api_key: str,
-    model: str, status: Callable[[str], None] = lambda _message: None,
-    check_cancelled: Callable[[], None] = lambda: None,
-) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
-    return ai_transcript_finishing.classify_with_jev(
-        segments, topics, api_key, model, clean_single_line=clean_single_line,
-        default_model=JEV_DEFAULT_MODEL, post=post_json, classify=classify_with_jev,
-        status=status, check_cancelled=check_cancelled,
-    )
-
-
 def create_outline_with_ai(
     segments: list[dict[str, Any]], speaker_names: dict[str, str],
     provider: str, api_key: str, model: str, status: Callable[[str], None],
@@ -1097,11 +929,9 @@ def run_transcription_job(job: JobRecord, options: JobOptions) -> None:
         "TranscriptionReporter": TranscriptionReporter,
         "UPLOAD_DIRECTORY": UPLOAD_DIRECTORY,
         "WHISPER_SAMPLE_RATE": WHISPER_SAMPLE_RATE,
-        "aist_emotion_model_keys": aist_emotion_model_keys,
         "apply_speaker_identity_repairs": apply_speaker_identity_repairs,
         "attach_jev_comparison": attach_jev_comparison,
         "audio_preprocess_label": audio_preprocess_label,
-        "build_emotion_analysis_summary": build_emotion_analysis_summary,
         "build_meeting_minutes": build_meeting_minutes,
         "clean_recommended_segments_with_ai": clean_recommended_segments_with_ai,
         "clean_segments_with_ai": clean_segments_with_ai,
@@ -1127,17 +957,13 @@ def run_transcription_job(job: JobRecord, options: JobOptions) -> None:
         "normalize_asr_segments": normalize_asr_segments,
         "normalize_conversation_speaker_profiles": normalize_conversation_speaker_profiles,
         "normalize_meeting_minutes": normalize_meeting_minutes,
-        "obsidian_workbench": obsidian_workbench,
         "offset_asr_segments_to_gap": offset_asr_segments_to_gap,
         "path_entry_exists": path_entry_exists,
-        "publish_input_vault": publish_input_vault,
-        "publish_meeting_minutes_to_obsidian": publish_meeting_minutes_to_obsidian,
         "register_detected_speakers": register_detected_speakers,
         "review_segments_with_jev": review_segments_with_jev,
         "row_segments": row_segments,
         "row_session_profile": row_session_profile,
         "row_speaker_profiles": row_speaker_profiles,
-        "run_aist_emotion_analysis": run_aist_emotion_analysis,
         "run_audio_interval_preprocess": run_audio_interval_preprocess,
         "run_audio_preprocess": run_audio_preprocess,
         "run_diarization_audio_preprocess": run_diarization_audio_preprocess,
@@ -1148,7 +974,6 @@ def run_transcription_job(job: JobRecord, options: JobOptions) -> None:
         "transcript_formatting_result": transcript_formatting_result,
         "update_job": update_job,
         "upsert_library_item": upsert_library_item,
-        "whisper_vault_settings": whisper_vault_settings,
         "whisper_vocabulary_prompt": whisper_vocabulary_prompt,
         "write_outputs": write_outputs,
         "write_subtitled_video_assets": write_subtitled_video_assets,
@@ -1209,47 +1034,8 @@ def record_training_corrections(*args: Any, **kwargs: Any) -> int:
     return training_corpus.record_training_corrections(*args, **kwargs)
 
 def update_library_from_payload(item_id: str, payload: Any) -> dict[str, Any]:
-    return analysis_commands().update_item(item_id, payload)
-
-
-def vault_registry():
-    from .vault_registry import VaultRegistry
-    return VaultRegistry(DATABASE_FILE, PROJECT_DIRECTORY / "docs" / "program-vault")
-
-
-def vault_publications() -> VaultPublicationService:
-    return VaultPublicationService(
-        registry=vault_registry,
-        database_connection=database_connection,
-        preparation_view=preparation.view,
-        row_segments=row_segments,
-        row_session_profile=row_session_profile,
-        database_error=sqlite3.Error,
-        warn=lambda message, exc: app.logger.warning("%s: %s", message, exc),
-        research_layout=research_layout,
-    )
-
-
-def research_layout():
-    from .obsidian_layout import ObsidianLayout
-    return ObsidianLayout(DATABASE_FILE)
-
-
-def publish_input_vault(row, whisper: dict[str, Any] | None = None, *, source_kind: str | None = None) -> None:
-    vault_publications().publish_input(row, whisper, source_kind=source_kind)
-
-
-def retire_input_vault(item_id: str) -> None:
-    vault_publications().retire_input(item_id)
-
-
-def whisper_vault_settings(options: JobOptions, language: str | None) -> dict[str, Any]:
-    diarization_model = (
-        "nvidia/Nemotron-3-Diarization"
-        if getattr(options, "transcription_backend", "whisperx") in ("qwen3_nemotron", "haas_ja")
-        else DIARIZATION_MODEL
-    )
-    return whisper_settings(options, language, diarization_model=diarization_model)
+    with library_write_lock:
+        return _update_library_from_payload_locked(item_id, payload)
 
 
 _update_library_from_payload_locked = make_library_update(
@@ -1322,8 +1108,6 @@ def restore_library_trash(entry_id: str) -> str:
     item_id = library_trash.restore(
         trash_directory(), entry_id, connect=database_connection,
         targets={"media": MEDIA_DIRECTORY, "thumbnail": THUMBNAIL_DIRECTORY}, move=_trash_move)
-    # Clears the ResearchVault deletion mark and republishes the InputVault ledger.
-    publish_input_vault(library_row(item_id))
     return item_id
 
 
@@ -1332,12 +1116,8 @@ def purge_library_trash(entry_id: str) -> None:
 
 
 def create_data_backup(include_media: bool = False) -> dict[str, Any]:
-    """Back up the data directory while every Vault and library writer is paused (DATA-03)."""
-    from .analysis_store import STORE_LOCK
-    from .obsidian_layout import LAYOUT_LOCK
-    from .vault_registry import VAULT_LOCK
-    # Same order as the writers take them: library -> store -> layout -> generated Vaults.
-    with library_write_lock, STORE_LOCK, LAYOUT_LOCK, VAULT_LOCK:
+    """書き込みを止め、既存の解析成果物やVaultも互換対象として保持する。"""
+    with library_write_lock:
         return data_backup.create_backup(
             DATABASE_FILE.parent, BACKUP_DIRECTORY, include_media=include_media, app_version=APP_VERSION,
         )
@@ -1385,58 +1165,6 @@ def initialize_application() -> None:
     application_lifecycle().initialize()
 
 
-comparison_rate = interview_comparison.comparison_rate
-
-
-def build_interview_comparison(
-    rows: list[sqlite3.Row], *, allow_different_content: bool,
-) -> dict[str, Any]:
-    return interview_comparison.build_interview_comparison(
-        rows, allow_different_content=allow_different_content,
-        row_session_profile=row_session_profile,
-        interview_comparison_identity=interview_comparison_identity,
-        group_analysis_for_row=group_analysis_for_row,
-        text_mining_counter=text_mining_counter,
-    )
-
-
-def interview_comparison_request(payload: Any) -> tuple[list[sqlite3.Row], bool]:
-    """Validate a 2-8 interview selection and read the rows in the selected order."""
-    if isinstance(payload, dict) and payload.get('data_group_id'):
-        from .services import data_catalog
-        with database_connection() as connection:
-            try:
-                ids = data_catalog.members(connection, payload['data_group_id'])
-            except LookupError as exc:
-                raise ComparisonRequestError(str(exc), 404) from exc
-        if payload.get('item_ids') and sorted(set(payload['item_ids'])) != ids:
-            raise ComparisonRequestError("グループの対象集合が変わっています。再集計してください。", 409)
-        payload = {**payload, 'item_ids': ids}
-    if not isinstance(payload, dict) or not isinstance(payload.get("item_ids"), list):
-        raise ComparisonRequestError("比較するインタビューを指定してください。")
-    item_ids: list[str] = []
-    for value in payload["item_ids"]:
-        item_id = str(value or "")
-        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", item_id):
-            raise ComparisonRequestError("比較対象のIDが正しくありません。")
-        if item_id not in item_ids:
-            item_ids.append(item_id)
-    if not 2 <= len(item_ids) <= 8:
-        raise ComparisonRequestError("比較するインタビューは2〜8件選択してください。")
-    allow_different = payload.get("allow_different_content", False)
-    if not isinstance(allow_different, bool):
-        raise ComparisonRequestError("内容が異なる比較の指定が正しくありません。")
-    with database_connection() as connection:
-        placeholders = ",".join("?" for _ in item_ids)
-        fetched = connection.execute(
-            f"SELECT * FROM library_items WHERE id IN ({placeholders})", item_ids
-        ).fetchall()
-    by_id = {str(row["id"]): row for row in fetched}
-    if any(item_id not in by_id for item_id in item_ids):
-        raise ComparisonRequestError("比較対象のデータが見つかりません。", 404)
-    return [by_id[item_id] for item_id in item_ids], allow_different
-
-
 identify_library_speakers = make_library_speaker_identification(
     _update_library_from_payload_locked=lambda *args, **kwargs: _update_library_from_payload_locked(*args, **kwargs),
     configured_ai_credentials=lambda *args, **kwargs: configured_ai_credentials(*args, **kwargs),
@@ -1448,8 +1176,6 @@ identify_library_speakers = make_library_speaker_identification(
     load_token_config=lambda *args, **kwargs: load_token_config(*args, **kwargs),
     merge_ai_usage=lambda *args, **kwargs: merge_ai_usage(*args, **kwargs),
     public_diagnostic_text=lambda *args, **kwargs: public_diagnostic_text(*args, **kwargs),
-    publish_input_vault=lambda *args, **kwargs: publish_input_vault(*args, **kwargs),
-    refresh_archive_index=lambda *args, **kwargs: refresh_archive_index(*args, **kwargs),
     register_detected_speakers=lambda *args, **kwargs: register_detected_speakers(*args, **kwargs),
     row_segments=lambda *args, **kwargs: row_segments(*args, **kwargs),
     row_session_profile=lambda *args, **kwargs: row_session_profile(*args, **kwargs),
@@ -1475,10 +1201,6 @@ def outline_rerun_handler() -> OutlineRerunHandler:
     return OutlineRerunHandler(rerun_library_outline)
 
 
-def obsidian_workbench() -> ObsidianWorkbench:
-    return ObsidianWorkbench(DATABASE_FILE)
-
-
 def notation_workflows():
     from .services.notation_workflows import NotationWorkflows
     return NotationWorkflows(SimpleNamespace(
@@ -1487,70 +1209,11 @@ def notation_workflows():
         configured_ai_credentials=configured_ai_credentials, call_ai_json=call_ai_json,
         merge_ai_usage=merge_ai_usage, library_write_lock=library_write_lock,
         update_library_item_locked=_update_library_from_payload_locked,
-        archive_ai_finishing=archive_ai_finishing,
         save_custom_vocabulary=save_custom_vocabulary, load_custom_vocabulary=load_custom_vocabulary))
 
 
 def unify_notation(*args, **kwargs):
     return notation_workflows().finish(*args, **kwargs)
-
-
-def obsidian_workflows() -> ObsidianWorkflowService:
-    """Build explicit dependencies for researcher-owned workbench operations."""
-    return ObsidianWorkflowService(SimpleNamespace(
-        sqlite_error=sqlite3.Error,
-        workbench=obsidian_workbench,
-        library_row=library_row,
-        row_session_profile=row_session_profile,
-        row_meeting_minutes=row_meeting_minutes,
-        row_segments=row_segments,
-        meeting_external_payload=meeting_external_payload,
-        meeting_tasks_csv_text=meeting_tasks_csv_text,
-        normalize_meeting_minutes=normalize_meeting_minutes,
-        library_write_lock=library_write_lock,
-        row_speaker_profiles=row_speaker_profiles,
-        update_library_item_locked=_update_library_from_payload_locked,
-        merge_ai_usage=merge_ai_usage,
-        json_load=json_load,
-        publish_input_vault=publish_input_vault,
-        archive_ai_finishing=archive_ai_finishing,
-        load_token_config=load_token_config,
-        configured_ai_credentials=configured_ai_credentials,
-        create_outline_with_ai=create_outline_with_ai,
-        clean_segments_with_ai=clean_segments_with_ai,
-        unify_notation=unify_notation,
-        review_segments_with_jev=review_segments_with_jev,
-        attach_jev_comparison=attach_jev_comparison,
-        detect_speaker_names_with_ai=detect_speaker_names_with_ai,
-        apply_speaker_identity_repairs=apply_speaker_identity_repairs,
-    ))
-
-
-def meeting_minutes_fingerprint(minutes: dict[str, Any]) -> str:
-    return obsidian_workflows().meeting_minutes_fingerprint(minutes)
-
-
-def publish_meeting_minutes_to_obsidian(row: sqlite3.Row) -> dict[str, Any]:
-    return obsidian_workflows().publish_meeting_minutes(row)
-
-
-def run_obsidian_finishing(action: str, state: dict, segments: list[dict],
-                           context: dict, provider: str, check: Callable) -> dict:
-    return obsidian_workflows().run_finishing(action, state, segments, context, provider, check)
-
-
-obsidian_watcher_status = WatcherStatus()
-
-
-def _spawn_obsidian_watcher() -> tuple[threading.Event, threading.Thread]:
-    from .obsidian_migration import migrate
-    return ObsidianWatcher(
-        workbench=obsidian_workbench,
-        engine=run_obsidian_finishing,
-        migrate=lambda database: migrate(database, backup_root=BACKUP_DIRECTORY),
-        log_exception=app.logger.exception,
-        status=obsidian_watcher_status,
-    ).start()
 
 
 media_metadata_backfill = media_assets.Backfill(lambda: database_connection(), library_write_lock)
@@ -1586,9 +1249,6 @@ def application_lifecycle() -> ApplicationLifecycle:
                 reconcile_custom_vocabulary()
             except (OSError, ValueError):
                 app.logger.warning("登録語の写しを照合できませんでした。DBと既存ファイルを保持しています。")
-            with database_connection() as connection:
-                recover_orchestration_runs(connection)
-                recover_orchestration_publications(connection)
 
         def repair_provenance() -> None:
             with database_connection() as connection:
@@ -1610,255 +1270,9 @@ def application_lifecycle() -> ApplicationLifecycle:
             report_delete_warning=lambda warning: print(
                 f"Delete recovery warning: {warning}", file=sys.stderr
             ),
-            spawn_watcher=lambda: _spawn_obsidian_watcher(),
             spawn_media_worker=lambda: media_metadata_backfill.start(),
         )
     return _application_lifecycle
-
-
-def start_obsidian_watcher() -> tuple[threading.Event, threading.Thread]:
-    return application_lifecycle().start_watcher()
-
-
-def analysis_archive_store() -> AnalysisStore:
-    return AnalysisStore(DATABASE_FILE, database_connection)
-
-
-(
-    archive_source_stamp,
-    archive_snapshot,
-    archive_group_analysis,
-    archive_segment_classification,
-    archive_ai_finishing,
-    archive_app_url,
-    archive_meeting_minutes,
-    interview_comparison_datasets,
-    archive_interview_comparison,
-    refresh_archive_index,
-) = make_analysis_archive(
-    analysis_archive_store=lambda *args, **kwargs: analysis_archive_store(*args, **kwargs),
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    row_segments=lambda *args, **kwargs: row_segments(*args, **kwargs),
-    row_session_profile=lambda *args, **kwargs: row_session_profile(*args, **kwargs),
-)
-
-
-def analysis_queries() -> AnalysisQueries:
-    """Build request-time query dependencies so patched settings stay effective."""
-    return AnalysisQueries(
-        store=analysis_archive_store(),
-        find_item=library_row,
-        source_fingerprint=archive_source_stamp,
-        database_connection=database_connection,
-        build_analysis=group_analysis_for_row,
-        public_insight_request=public_insight_request,
-        public_transformer_request=public_transformer_request,
-        expose_local_paths=local_path_access_allowed(),
-    )
-
-
-build_analysis_pipeline_snapshot, advise_analysis_plan = make_analysis_pipeline_adapters(
-    archive_snapshot=lambda *args, **kwargs: archive_snapshot(*args, **kwargs),
-    archive_source_stamp=lambda *args, **kwargs: archive_source_stamp(*args, **kwargs),
-    call_ai_json=lambda *args, **kwargs: call_ai_json(*args, **kwargs),
-    configured_ai_credentials=lambda *args, **kwargs: configured_ai_credentials(*args, **kwargs),
-    encode_transformer_texts=lambda *args, **kwargs: encode_transformer_texts(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    load_token_config=lambda *args, **kwargs: load_token_config(*args, **kwargs),
-)
-
-
-def build_analysis_orchestration_snapshot(row):
-    return build_analysis_pipeline_snapshot(row, schema_version=1)
-
-
-def analysis_pipeline_service() -> AnalysisPipelineService:
-    store = analysis_archive_store()
-
-    def public_run(value: dict[str, Any]) -> dict[str, Any]:
-        row = store.get(str(value.get("id") or ""))
-        if row is None:
-            raise LookupError("保存結果が見つかりません。")
-        return store.public(row, local=local_path_access_allowed())
-
-    return AnalysisPipelineService(
-        connect=database_connection,
-        find_item=library_row,
-        source_fingerprint=archive_source_stamp,
-        snapshot_builder=build_analysis_pipeline_snapshot,
-        method_runner=run_analysis_pipeline_method,
-        save_result=store.save,
-        publish_result=lambda run_id, **kwargs: store.publish(run_id, reuse_completed=True, **kwargs),
-        publication_outcomes=store.publication_outcomes,
-        public_run=public_run,
-        runtime_key=str(DATABASE_FILE.resolve()),
-        plan_advisor=advise_analysis_plan,
-    )
-
-
-def call_orchestration_ai_json(
-    provider, api_key, model, system_prompt, user_prompt, schema_name, schema,
-    check_cancelled=None, usage_callback=None, base_url="", timeout_seconds=240,
-    max_output_tokens=None, data_messages=None,
-):
-    """One transport dispatch per Handler task; retries must be ledgered.
-
-    Other existing AI workflows retain their normal transient HTTP retry policy.
-    An ambiguous response in this loop must never silently consume a second call.
-    """
-    def post_once(url, headers, payload, **kwargs):
-        return ai_client.post_json(
-            url, headers, payload, worker_file=AI_HTTP_WORKER_FILE,
-            run_subprocess=run_cancellable_subprocess, retry_delays=(),
-            timeout=timeout_seconds, **kwargs,
-        )
-    return ai_client.call_ai_json(
-        provider, api_key, model, system_prompt, user_prompt, schema_name, schema,
-        post=post_once, lmstudio_base=lmstudio_base_url,
-        lmstudio_model_id=lmstudio_model_id,
-        lmstudio_reasoning=lmstudio_reasoning_settings,
-        extract_openai=extract_openai_text, extract_google=extract_google_text,
-        extract_lmstudio=extract_lmstudio_text,
-        providers=AI_MODEL_PROVIDERS, check_cancelled=check_cancelled,
-        usage_callback=usage_callback, base_url=base_url,
-        max_output_tokens=max_output_tokens,
-        data_messages=data_messages,
-    )
-
-
-prepare_orchestration, run_orchestration_agent = make_orchestration_adapters(
-    call_ai_json=lambda *args, **kwargs: call_orchestration_ai_json(*args, **kwargs),
-    load_token_config=lambda: load_token_config(),
-    configured_ai_credentials=lambda *args: configured_ai_credentials(*args),
-)
-
-_orchestration_services: dict[str, AnalysisOrchestrationService] = {}
-_orchestration_publication_services: dict[str, AnalysisOrchestrationPublicationService] = {}
-_orchestration_service_lock = threading.RLock()
-
-
-def orchestration_source_guard(connection, item_id: str, expected_hash: str):
-    row = connection.execute("SELECT * FROM library_items WHERE id=?", (item_id,)).fetchone()
-    if row is None:
-        raise LookupError("対象の会話が削除されています。")
-    if archive_source_stamp(row, connection=connection) != expected_hash:
-        raise AnalysisContractError("元データが更新されています。固定成果物は残し、Vault公開を停止します。", code="revision_conflict")
-    return dict(row)
-
-
-def analysis_orchestration_service() -> AnalysisOrchestrationService:
-    # Preserve process-local worker ownership across read/cancel/resume requests.
-    # SQLite remains authoritative; this cache does not survive process restart.
-    key = str(DATABASE_FILE.resolve())
-    with _orchestration_service_lock:
-        if key not in _orchestration_services:
-            _orchestration_services[key] = AnalysisOrchestrationService(
-                connect=lambda: database_connection(),
-                find_item=lambda item_id: library_row(item_id),
-                source_fingerprint=lambda row: archive_source_stamp(row),
-                snapshot_builder=lambda row: build_analysis_orchestration_snapshot(row),
-                initial_builder=make_staged_initial_builder(
-                    derived_database=lambda: DATABASE_FILE.parent / "analysis-derived.sqlite3",
-                    archive_snapshot=lambda *args, **kwargs: archive_snapshot(*args, **kwargs),
-                    archive_source_stamp=lambda *args, **kwargs: archive_source_stamp(*args, **kwargs),
-                    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-                ),
-                agent_runner=lambda *args: run_orchestration_agent(*args),
-                outline_builder=lambda *args: run_orchestration_agent.prepare_outline(*args),
-                method_runner=lambda *args: run_orchestration_method(*args),
-                write_lock=library_write_lock,
-                adapter_version=ORCHESTRATION_ADAPTER_VERSION,
-                on_complete=lambda item_id, run_id: analysis_orchestration_publication_service().finalize(item_id, run_id),
-            )
-        return _orchestration_services[key]
-
-
-@contextmanager
-def analysis_history_connection():
-    """Viewer reads cannot create a missing DB, migrate it, or commit writes."""
-    connection = sqlite3.connect(DATABASE_FILE.resolve().as_uri() + "?mode=ro", uri=True, timeout=30)
-    connection.row_factory = sqlite3.Row
-    try:
-        connection.execute("PRAGMA query_only = ON")
-        yield connection
-    finally:
-        connection.close()
-
-
-def analysis_history_item(item_id: str):
-    with analysis_history_connection() as connection:
-        return connection.execute("SELECT id,source_name FROM library_items WHERE id=?", (item_id,)).fetchone()
-
-
-def analysis_history_service() -> AnalysisHistoryService:
-    return AnalysisHistoryService(connect=analysis_history_connection, find_item=analysis_history_item)
-
-
-def analysis_slides_service() -> AnalysisSlidesService:
-    return AnalysisSlidesService(
-        export_result=lambda item_id, run_id: analysis_history_service().saved_export(item_id, run_id),
-        vault_factory=vault_registry,
-        templates=load_slide_templates(PROJECT_DIRECTORY),
-    )
-
-
-def analysis_orchestration_publication_service() -> AnalysisOrchestrationPublicationService:
-    key = str(DATABASE_FILE.resolve())
-    with _orchestration_service_lock:
-        if key not in _orchestration_publication_services:
-            _orchestration_publication_services[key] = AnalysisOrchestrationPublicationService(
-                connect=lambda: database_connection(),
-                store_factory=lambda: analysis_archive_store(),
-                source_guard=orchestration_source_guard,
-                export_locked=lambda db, item_id, run_id: analysis_orchestration_service().result_locked(db, item_id, run_id),
-                write_lock=library_write_lock,
-            )
-        return _orchestration_publication_services[key]
-
-
-def mark_analysis_run_stale(run_id: str) -> None:
-    with database_connection() as connection:
-        connection.execute("UPDATE analysis_runs SET stale=1 WHERE id=?", (run_id,))
-
-
-def freeze_comparison_selection(items, payload):
-    from .services import data_catalog
-    with database_connection() as connection:
-        return data_catalog.freeze(connection, [str(item['id']) for item in items],
-            group_ids=[payload['data_group_id']] if payload.get('data_group_id') else [], group_by=payload.get('group_by'))
-
-
-def analysis_commands() -> AnalysisCommands:
-    """Build save dependencies at request time so patched settings stay effective."""
-    return AnalysisCommands(
-        store=analysis_archive_store(),
-        find_item=library_row,
-        build_analysis=lambda row: group_analysis_for_row(
-            row, include_research_rows=True
-        ),
-        search_kwic=search_kwic,
-        archive_analysis=archive_group_analysis,
-        source_fingerprint=archive_source_stamp,
-        mark_stale=mark_analysis_run_stale,
-        load_comparison_items=interview_comparison_request,
-        build_comparison=build_interview_comparison,
-        archive_comparison=archive_interview_comparison,
-        freeze_comparison=freeze_comparison_selection,
-        database_connection=database_connection,
-        save_preparation_state=preparation.save,
-        segments_for_item=row_segments,
-        refresh_archive_index=refresh_archive_index,
-        publish_input_vault=publish_input_vault,
-        update_library_item_locked=_update_library_from_payload_locked,
-        start_insights=start_analysis_insights_command,
-        cancel_insights=cancel_analysis_insights_command,
-        start_transformer=start_transformer_analysis_command,
-        cancel_transformer=cancel_transformer_analysis_command,
-        run_classification=run_segment_classifications_command,
-        write_lock=library_write_lock,
-        expose_local_paths=local_path_access_allowed(),
-        pipeline_service=analysis_pipeline_service(),
-    )
 
 
 def speaker_registry_handler() -> SpeakerRegistryHandler:
@@ -1867,7 +1281,6 @@ def speaker_registry_handler() -> SpeakerRegistryHandler:
         snapshot=speaker_registry_snapshot,
         save_records_locked=_save_speaker_registry_records_locked,
         database_connection=database_connection,
-        refresh_archive_index=refresh_archive_index,
         write_lock=library_write_lock,
     )
 
@@ -1891,79 +1304,16 @@ def job_handler() -> JobHandler:
     )
 
 
-public_insight_request, update_insight_request, run_analysis_insight_job = make_insight_jobs(
-    AnalysisConflictError=AnalysisConflictError,
-    archive_group_analysis=lambda *args, **kwargs: archive_group_analysis(*args, **kwargs),
-    call_ai_json=lambda *args, **kwargs: call_ai_json(*args, **kwargs),
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    insight_cancel_events=insight_cancel_events,
-    insight_jobs_lock=insight_jobs_lock,
-    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    library_write_lock=library_write_lock,
-    merge_ai_usage=lambda *args, **kwargs: merge_ai_usage(*args, **kwargs),
-    public_diagnostic_text=lambda *args, **kwargs: public_diagnostic_text(*args, **kwargs),
-)
-
-
-start_analysis_insights_command, cancel_analysis_insights_command = make_insight_commands(
-    configured_ai_credentials=lambda *args, **kwargs: configured_ai_credentials(*args, **kwargs),
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    insight_cancel_events=insight_cancel_events,
-    insight_jobs_lock=insight_jobs_lock,
-    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    load_token_config=lambda *args, **kwargs: load_token_config(*args, **kwargs),
-    public_insight_request=lambda *args, **kwargs: public_insight_request(*args, **kwargs),
-    run_analysis_insight_job=lambda *args, **kwargs: run_analysis_insight_job(*args, **kwargs),
-    update_insight_request=lambda *args, **kwargs: update_insight_request(*args, **kwargs),
-)
-
-
-public_transformer_request, update_transformer_request, run_transformer_analysis_job = make_transformer_jobs(
-    AnalysisConflictError=AnalysisConflictError,
-    analyze_transformer_topics=lambda *args, **kwargs: analyze_transformer_topics(*args, **kwargs),
-    archive_group_analysis=lambda *args, **kwargs: archive_group_analysis(*args, **kwargs),
-    build_research_analysis=lambda *args, **kwargs: build_research_analysis(*args, **kwargs),
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    library_write_lock=library_write_lock,
-    public_diagnostic_text=lambda *args, **kwargs: public_diagnostic_text(*args, **kwargs),
-    transformer_cancel_events=transformer_cancel_events,
-    transformer_jobs_lock=transformer_jobs_lock,
-)
-
-
-start_transformer_analysis_command, cancel_transformer_analysis_command = make_transformer_commands(
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    public_transformer_request=lambda *args, **kwargs: public_transformer_request(*args, **kwargs),
-    run_transformer_analysis_job=lambda *args, **kwargs: run_transformer_analysis_job(*args, **kwargs),
-    transformer_cancel_events=transformer_cancel_events,
-    transformer_jobs_lock=transformer_jobs_lock,
-    update_transformer_request=lambda *args, **kwargs: update_transformer_request(*args, **kwargs),
-)
-
-
-run_segment_classifications_command = make_segment_classification_command(
-    AnalysisConflictError=AnalysisConflictError,
-    analysis_archive_store=lambda *args, **kwargs: analysis_archive_store(*args, **kwargs),
-    archive_segment_classification=lambda *args, **kwargs: archive_segment_classification(*args, **kwargs),
-    classify_segments_with_jev=lambda *args, **kwargs: classify_segments_with_jev(*args, **kwargs),
-    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
-    group_analysis_for_row=lambda *args, **kwargs: group_analysis_for_row(*args, **kwargs),
-    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
-    library_write_lock=library_write_lock,
-    load_token_config=lambda *args, **kwargs: load_token_config(*args, **kwargs),
-    local_path_access_allowed=lambda *args, **kwargs: local_path_access_allowed(*args, **kwargs),
-    public_diagnostic_text=lambda *args, **kwargs: public_diagnostic_text(*args, **kwargs),
-)
-
-
 def meeting_minutes_export_row(item_id: str) -> tuple[sqlite3.Row, dict[str, Any]]:
-    return obsidian_workflows().meeting_minutes_export_row(item_id)
+    row = library_row(item_id)
+    if row is None:
+        raise LookupError("データが見つかりません。")
+    if row_session_profile(row).get("session_type") != "meeting":
+        raise ValueError("会議モードのデータではありません。")
+    minutes = row_meeting_minutes(row)
+    if not minutes:
+        raise ValueError("保存済みの議事録がありません。")
+    return row, minutes
 
 
 _delete_library_item_locked = make_library_deletion(
@@ -1978,7 +1328,6 @@ _delete_library_item_locked = make_library_deletion(
     library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
     local_path_access_allowed=lambda *args, **kwargs: local_path_access_allowed(*args, **kwargs),
     reconcile_edit_transactions_before_delete=lambda *args, **kwargs: reconcile_edit_transactions_before_delete(*args, **kwargs),
-    retire_input_vault=lambda *args, **kwargs: retire_input_vault(*args, **kwargs),
     trash_directory=lambda: trash_directory(),
     trash_retention_days=lambda: trash_retention_days(),
 )
@@ -2075,13 +1424,7 @@ def _run_initialized_application(host: str, port: int) -> int:
     print("終了するにはこのウィンドウで Ctrl+C を押してください。")
     if os.environ.get("MOJIOKOSI_NO_BROWSER") != "1":
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    if OBSIDIAN_ENABLED:
-        start_obsidian_watcher()
-    try:
-        app.run(host=host, port=port, threaded=True, use_reloader=False)
-    finally:
-        if OBSIDIAN_ENABLED:
-            application_lifecycle().stop_watcher()
+    app.run(host=host, port=port, threaded=True, use_reloader=False)
     return 0
 
 

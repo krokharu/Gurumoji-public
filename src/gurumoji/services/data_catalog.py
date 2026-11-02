@@ -9,7 +9,7 @@ import unicodedata
 import uuid
 from typing import Any
 
-from ..analysis_store import canonical, digest
+from .transcript_shared import canonical, digest
 from ..text_utils import utc_now_iso
 from . import change_log
 
@@ -69,21 +69,24 @@ def initialize(db: sqlite3.Connection) -> None:
         db.execute(f"CREATE INDEX IF NOT EXISTS {table}_item_idx ON {table}(item_id)")
         for event in ("INSERT", "UPDATE", "DELETE"):
             refs = ["OLD.item_id", "NEW.item_id"] if event == "UPDATE" else ["OLD.item_id" if event == "DELETE" else "NEW.item_id"]
-            db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_stale_{event.lower()}_v1
-                AFTER {event} ON {table} BEGIN UPDATE analysis_runs SET stale=1
-                WHERE id IN (SELECT run_id FROM analysis_run_members WHERE item_id IN ({','.join(refs)}))
-                OR id IN (SELECT r.run_id FROM analysis_run_groups r JOIN data_groups g ON g.group_id=r.group_id WHERE g.kind='rule'); END""")
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_runs'").fetchone():
+                db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_stale_{event.lower()}_v1
+                    AFTER {event} ON {table} BEGIN UPDATE analysis_runs SET stale=1
+                    WHERE id IN (SELECT run_id FROM analysis_run_members WHERE item_id IN ({','.join(refs)}))
+                    OR id IN (SELECT r.run_id FROM analysis_run_groups r JOIN data_groups g ON g.group_id=r.group_id WHERE g.kind='rule'); END""")
         db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_delete_v1 AFTER DELETE ON library_items
             BEGIN DELETE FROM {table} WHERE item_id=OLD.id; END""")
     for table, column, child in (("tags", "tag_id", "conversation_tags"), ("data_groups", "group_id", "data_group_members")):
         db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_delete_v1 AFTER DELETE ON {table}
             BEGIN DELETE FROM {child} WHERE {column}=OLD.{column}; END""")
-        db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_stale_update_v1 AFTER UPDATE ON {table}
-            BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN (SELECT run_id FROM analysis_run_members
-            WHERE item_id IN (SELECT item_id FROM {child} WHERE {column}=OLD.{column})); END""")
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_runs'").fetchone():
+            db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_stale_update_v1 AFTER UPDATE ON {table}
+                BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN (SELECT run_id FROM analysis_run_members
+                WHERE item_id IN (SELECT item_id FROM {child} WHERE {column}=OLD.{column})); END""")
     for event in ('UPDATE', 'DELETE'):
-        db.execute(f"""CREATE TRIGGER IF NOT EXISTS data_groups_runs_{event.lower()}_v1 AFTER {event} ON data_groups
-            BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN (SELECT run_id FROM analysis_run_groups WHERE group_id=OLD.group_id); END""")
+        if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_runs'").fetchone():
+            db.execute(f"""CREATE TRIGGER IF NOT EXISTS data_groups_runs_{event.lower()}_v1 AFTER {event} ON data_groups
+                BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN (SELECT run_id FROM analysis_run_groups WHERE group_id=OLD.group_id); END""")
     for event in ('INSERT', 'UPDATE', 'DELETE'):
         refs = ['OLD.group_id', 'NEW.group_id'] if event == 'UPDATE' else ['OLD.group_id' if event == 'DELETE' else 'NEW.group_id']
         db.execute(f"""CREATE TRIGGER IF NOT EXISTS data_group_members_version_{event.lower()}_v1 AFTER {event} ON data_group_members
@@ -94,14 +97,16 @@ def initialize(db: sqlite3.Connection) -> None:
             BEFORE {event} ON conversation_attributes WHEN NOT EXISTS
             (SELECT 1 FROM attribute_definitions WHERE key=NEW.key AND scope='conversation')
             BEGIN SELECT RAISE(ABORT,'undefined conversation attribute'); END""")
-    db.execute("""CREATE TRIGGER IF NOT EXISTS attribute_definitions_stale_v1 AFTER UPDATE ON attribute_definitions
-        BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN (SELECT run_id FROM analysis_run_members); END""")
+    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_runs'").fetchone():
+        db.execute("""CREATE TRIGGER IF NOT EXISTS attribute_definitions_stale_v1 AFTER UPDATE ON attribute_definitions
+            BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN (SELECT run_id FROM analysis_run_members); END""")
     for table, update in (('library_items', 'UPDATE OF segments_json,speaker_profiles_json'),
                           ('speaker_registry', 'UPDATE OF attributes_json')):
         for event, clause in (('insert', 'INSERT'), ('update', update), ('delete', 'DELETE')):
-            db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_rule_groups_{event}_v1 AFTER {clause} ON {table}
-                BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN
-                (SELECT r.run_id FROM analysis_run_groups r JOIN data_groups g ON g.group_id=r.group_id WHERE g.kind='rule'); END""")
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='analysis_runs'").fetchone():
+                db.execute(f"""CREATE TRIGGER IF NOT EXISTS {table}_rule_groups_{event}_v1 AFTER {clause} ON {table}
+                    BEGIN UPDATE analysis_runs SET stale=1 WHERE id IN
+                    (SELECT r.run_id FROM analysis_run_groups r JOIN data_groups g ON g.group_id=r.group_id WHERE g.kind='rule'); END""")
 
 
 def name(value: Any) -> str:

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from .. import transcript_preparation as preparation
-from ..handlers.analysis_commands import TranscriptConflictError
+from ..handlers.transcript_errors import TranscriptConflictError
 from ..text_utils import json_load, validate_json_value
 from .durable_files import path_entry_exists
 from .edit_transactions import (
@@ -25,8 +25,8 @@ from .edit_transactions import (
     edit_staging_identity,
     load_edit_preparation_marker,
 )
-from .emotion import AIST_EMOTION_MODELS, build_emotion_analysis_summary, emotion_label_ja
-from .group_analysis import ANALYSIS_MAX_TIMELINE_SECONDS
+from .emotion_metadata import AIST_EMOTION_MODELS, emotion_label_ja
+from .transcript_shared import MAX_TIMELINE_SECONDS
 from .library_rows import (
     normalize_conversation_speaker_profiles,
     normalize_session_profile,
@@ -72,7 +72,7 @@ def normalize_edited_segments(item_id: str, raw_segments: Any) -> list[dict[str,
         end = round(end_number, 3)
         if end < start:
             raise ValueError(f"発話 {index + 1} の終了時刻は開始時刻以降にしてください。")
-        if end > ANALYSIS_MAX_TIMELINE_SECONDS or end - start > 86400:
+        if end > MAX_TIMELINE_SECONDS or end - start > 86400:
             raise ValueError(f"発話 {index + 1} の長さが不正です。")
         text_value = raw.get("text", "")
         if not isinstance(text_value, str) or len(text_value) > 50000:
@@ -230,13 +230,6 @@ def make_library_update(
             else {}
         )
         emotion_analysis = json_load(row["emotion_analysis_json"], None)
-        model_keys = sorted({
-            str(model_key)
-            for segment in new_segments
-            for model_key in ((segment.get("emotions") or {}).keys() if isinstance(segment.get("emotions"), dict) else [])
-        })
-        if model_keys:
-            emotion_analysis = build_emotion_analysis_summary(new_segments, model_keys, status="completed")
         output_dir = Path(row["output_dir"])
         try:
             uses_shared_default = output_dir.resolve() == default_output_directory().resolve()

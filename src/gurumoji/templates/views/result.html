@@ -10,8 +10,8 @@
             <p class="item-help">発話を選ぶと、その箇所の前後を含めて元の音声・動画を確認できます。保存した修正差分は、くしなだ学習用データにも蓄積します。</p>
           </div>
           <div class="item-actions">
-            <button id="return-to-analysis-evidence" class="secondary-button" type="button" hidden>見解・文脈検索に戻る</button>
-            <button id="result-analysis-button" class="primary-button small analysis-jump-button" type="button">分析・可視化 →</button>
+
+
           </div>
         </div>
         <details id="session-outline" class="session-outline">
@@ -101,7 +101,7 @@
               <label class="field"><textarea id="session-field-notes" rows="3" aria-label="観察・フィールドノート／会議メモ" placeholder="非言語反応、座席、力関係、決定事項、次の対応"></textarea></label>
             </details>
           </div>
-          <div id="speaker-insights" class="speaker-insights"></div>
+
           <div id="speaker-editor" class="speaker-editor"></div>
         </section>
       </div>
@@ -121,19 +121,7 @@
             </div>
           </div>
           <p id="meeting-minutes-method" class="meeting-minutes-method"></p>
-          {% if obsidian_enabled %}
-          <section class="meeting-obsidian-panel" aria-labelledby="meeting-obsidian-title">
-            <div>
-              <strong id="meeting-obsidian-title">Obsidian連携</strong>
-              <p id="meeting-obsidian-status" role="status">保存状態を確認しています…</p>
-              <small>会議議事録、元発話へのリンク、タスクCSV、連携JSONを同じVault内に保存します。更新時は旧版を残します。</small>
-            </div>
-            <div class="meeting-obsidian-actions">
-              <button id="meeting-obsidian-save" class="primary-button small" type="button">Obsidianに保存</button>
-              <a id="meeting-obsidian-open" class="secondary-button" href="#" hidden>Obsidianで開く</a>
-            </div>
-          </section>
-          {% endif %}
+
           <div id="meeting-minutes-summary" class="meeting-minutes-summary" aria-live="polite"></div>
           <div class="meeting-visual-grid">
             <section class="meeting-visual-card"><h4>優先度</h4><div id="meeting-priority-chart" class="meeting-priority-chart"></div></section>
@@ -160,12 +148,7 @@
           <small id="outline-rerun-status" class="outline-rerun-status" role="status"></small>
           <div id="outline-content" class="outline-content"></div>
         </div>
-        <div id="emotion-view" class="emotion-view" hidden>
-          <div class="outline-title-row">
-            <h3>音声感情分析</h3>
-          </div>
-          <div id="emotion-content" class="emotion-content"></div>
-        </div>
+
         <section id="result-ai-usage" class="ai-token-usage" aria-label="AIトークン使用量" hidden>
           <div class="ai-token-heading">
             <div><span class="ai-token-mark" aria-hidden="true">AI</span><div><small>AI TOKEN USAGE</small><strong data-ai-provider>AI</strong></div></div>
@@ -186,15 +169,7 @@
       </div>
 
       <div id="item-panel-files" class="item-panel" role="tabpanel" aria-labelledby="item-tab-files" data-item-panel="files" hidden>
-        <details class="item-files-card" id="research-import-panel">
-          <summary>研究ノート・外部分析結果を取り込む</summary>
-          <p>研究ノートの原本はそのまま保持します。解釈・コード案・外部分析結果は未承認として保存します。</p>
-          <button id="research-notes-preview" type="button" class="secondary-button">研究ノートの差分を確認</button>
-          <button id="research-notes-history" type="button" class="secondary-button">取り込み済みノートを読む</button>
-          <label class="field"><span>外部分析結果（JSON）</span><input id="external-analysis-file" type="file" accept="application/json,.json"></label>
-          <button id="external-analysis-import" type="button" class="secondary-button">外部分析結果を登録</button>
-          <p id="research-import-status" role="status" aria-live="polite"></p><div id="research-import-preview"></div>
-        </details>
+
         <section class="item-files-card" aria-labelledby="media-basic-info-title">
           <h3 id="media-basic-info-title">基本情報</h3>
           <p>メディアの長さと、文字起こしの最終時刻は別の値です。</p>
@@ -232,6 +207,6 @@
       </section>
       <div class="sticky-actions">
         <button id="save-button" class="primary-button small" type="button">編集内容を保存</button>
-        {% if obsidian_enabled %}<button id="obsidian-finishing-button" class="secondary-button" type="button">Obsidianで仕上げ</button>{% endif %}
+
       </div>
     </section>

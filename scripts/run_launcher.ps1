@@ -145,14 +145,6 @@ try {
     Show-StartupSplash
     Write-LaunchLine "Startup log: $logPath"
     Update-Source
-    $visualizationShortcut = Join-Path $ProjectRoot 'scripts\ensure_visualization_shortcut.ps1'
-    if (Test-Path -LiteralPath $visualizationShortcut) {
-        try {
-            & $visualizationShortcut | ForEach-Object { Write-LaunchLine $_ }
-        } catch {
-            Write-LaunchLine "Visualization Obsidian shortcut could not be created: $($_.Exception.Message)"
-        }
-    }
     # Show the version and commit timestamp of the code that will actually start.
     Write-ReleaseInfo
 

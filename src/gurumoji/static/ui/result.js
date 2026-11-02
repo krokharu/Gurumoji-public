@@ -20,33 +20,6 @@ function appendMeetingMetric(container, label, count, total, className = '') {
   container.append(row);
 }
 
-function applyMeetingObsidianStatus(data) {
-  if (!meetingObsidianStatus || !meetingObsidianSaveButton || !meetingObsidianOpenLink) return;
-  const state = data && data.status ? data.status : 'unprepared';
-  meetingObsidianStatus.dataset.state = state;
-  meetingObsidianStatus.textContent = data?.message || '会議議事録はObsidianに未保存です。';
-  meetingObsidianSaveButton.textContent = state === 'stale' ? '更新版をObsidianに保存'
-    : state === 'completed' ? 'Obsidianに保存済み' : 'Obsidianに保存';
-  meetingObsidianOpenLink.hidden = !data?.uri;
-  if (data?.uri) meetingObsidianOpenLink.href = data.uri;
-}
-
-async function loadMeetingObsidianStatus(jobId) {
-  // The panel is absent while the Obsidian integration is withdrawn.
-  if (!meetingObsidianStatus) return;
-  const generation = ++meetingObsidianStatusGeneration;
-  applyMeetingObsidianStatus({status: 'checking', message: 'Obsidianの保存状態を確認しています…'});
-  try {
-    const response = await apiFetch(`/api/library/${encodeURIComponent(jobId)}/meeting-obsidian`);
-    const data = await readJsonResponse(response);
-    if (!response.ok) throw new Error(data.error || 'Obsidianの保存状態を確認できませんでした。');
-    if (generation !== meetingObsidianStatusGeneration || currentJobId !== jobId) return;
-    applyMeetingObsidianStatus(data);
-  } catch (error) {
-    if (generation !== meetingObsidianStatusGeneration || currentJobId !== jobId) return;
-    applyMeetingObsidianStatus({status: 'error', message: error.message});
-  }
-}
 
 function renderMeetingMinutes(minutes, jobId) {
   if (!meetingMinutesView) return;
@@ -163,7 +136,7 @@ function renderMeetingMinutes(minutes, jobId) {
     item.append(text, meta);
     decisionList.append(item);
   });
-  loadMeetingObsidianStatus(jobId);
+
 }
 
 function renderSessionOutline(data, outline) {
@@ -172,137 +145,33 @@ function renderSessionOutline(data, outline) {
   const headline = document.querySelector('#session-outline-headline');
   if (!box || !host) return;
   host.replaceChildren();
-  const plan = (data && data.plan) || {available: false, items: []};
-  // A freshly finished transcription arrives without the joined block; show the
-  // agenda it does carry rather than claiming there is no result.
-  const sections = outline && Array.isArray(outline.sections) ? outline.sections : [];
-  const fallback = !data && sections.length ? {
-    available: true, outline_available: true, transformer_available: false,
-    rows: sections.map(section => ({
-      start: section.start, end: section.end, title: section.title || '議題',
-      title_source: 'outline', topics: [], segment_count: 0,
-    })),
-  } : null;
-  const result = (data && data.result) || fallback || {available: false, rows: []};
-  const rows = Array.isArray(result.rows) ? result.rows : [];
-  const planItems = Array.isArray(plan.items) ? plan.items : [];
-  if (headline) {
-    const parts = [plan.available ? `予定 ${plan.item_count}項目` : '予定なし'];
-    if (plan.available && plan.match === 'manual_topics') parts.push(`話された ${plan.discussed_count}項目`);
-    parts.push(rows.length ? `結果 ${rows.length}区間` : '結果なし');
-    headline.textContent = parts.join('・');
+  const plan = data?.plan || {items: []};
+  const rows = data?.result?.rows || (outline?.sections || []).map(section => ({
+    start: section.start, end: section.end, title: section.title || '議題'
+  }));
+  box.hidden = !plan.items?.length && !rows.length;
+  if (headline) headline.textContent = rows.length ? '保存済みアウトライン ' + rows.length + '区間' : '議題を確認';
+  if (plan.items?.length) {
+    const section = uiElement('section', 'session-outline-block');
+    section.append(uiElement('h3', '', '事前に入力した議題'));
+    const list = uiElement('ol');
+    plan.items.forEach(item => list.append(uiElement('li', '', item.text)));
+    section.append(list);
+    host.append(section);
   }
-
-  if (plan.available) {
-    const section = document.createElement('section');
-    section.className = 'session-outline-block';
-    const head = document.createElement('h3');
-    head.textContent = '予定（質問ガイド・議題）';
-    section.append(head);
-    if (plan.match !== 'manual_topics') {
-      const note = document.createElement('p');
-      note.className = 'session-outline-note';
-      note.textContent = '消化状況は未照合です。「分析・可視化」のTransformerテーマ分析で決め方を「手動で定義する」にし、質問ガイドから取り込んで実行すると、項目ごとの発話数が出ます。';
-      section.append(note);
-    }
-    const list = document.createElement('ol');
-    list.className = 'session-outline-plan';
-    planItems.forEach(item => {
-      const entry = document.createElement('li');
-      const text = document.createElement('span');
-      text.className = 'session-outline-plan-text';
-      text.textContent = item.text || '';
-      entry.append(text);
-      const statusLabels = {discussed: '話された', not_discussed: '発話の割当なし', unmatched: '未照合'};
-      const status = document.createElement('span');
-      status.className = `session-outline-status ${item.status || 'unmatched'}`;
-      status.textContent = item.status === 'discussed'
-        ? `${statusLabels.discussed}（${item.segment_count}発話・${item.speaker_count}人）`
-        : statusLabels[item.status] || '未照合';
-      entry.append(status);
+  if (rows.length) {
+    const section = uiElement('section', 'session-outline-block');
+    section.append(uiElement('h3', '', '結果（時間順）'));
+    const list = uiElement('ol', 'session-outline-rows');
+    rows.forEach(row => {
+      const entry = uiElement('li');
+      entry.append(uiElement('span', 'session-outline-time', formatTime(row.start) + '–' + formatTime(row.end)),
+                   uiElement('strong', '', row.title || '議題'));
       list.append(entry);
     });
     section.append(list);
     host.append(section);
-  } else {
-    const note = document.createElement('p');
-    note.className = 'session-outline-note';
-    note.textContent = '予定（質問ガイド・議題）は登録されていません。以下は、実際に話された結果と自動アウトラインです。予定は「会話・話者」タブの調査設計で登録できます。';
-    host.append(note);
   }
-
-  const section = document.createElement('section');
-  section.className = 'session-outline-block';
-  const head = document.createElement('h3');
-  head.textContent = '結果（時間順）';
-  section.append(head);
-  if (!rows.length) {
-    const empty = document.createElement('p');
-    empty.className = 'session-outline-note';
-    empty.textContent = '結果はまだありません。AI仕上げのアウトライン、または「分析・可視化」のTransformerテーマ分析を実行すると、ここに時間順で並びます。';
-    section.append(empty);
-  } else {
-    if (result.transformer_stale) {
-      const stale = document.createElement('p');
-      stale.className = 'session-outline-note warn';
-      stale.textContent = 'テーマは実行時点の結果です。その後に本文・話者・除外が変わっています。';
-      section.append(stale);
-    }
-    const list = document.createElement('ol');
-    list.className = 'session-outline-rows';
-    rows.forEach(row => {
-      const entry = document.createElement('li');
-      const time = document.createElement('span');
-      time.className = 'session-outline-time';
-      time.textContent = `${formatTime(row.start)}–${formatTime(row.end)}`;
-      const body = document.createElement('div');
-      const title = document.createElement('strong');
-      title.textContent = row.title || '議題';
-      const origin = document.createElement('span');
-      origin.className = `session-outline-origin ${row.title_source}`;
-      origin.textContent = row.title_source === 'outline' ? 'AI議題' : 'テーマ';
-      body.append(title, origin);
-      const topics = Array.isArray(row.topics) ? row.topics : [];
-      if (topics.length) {
-        const chips = document.createElement('div');
-        chips.className = 'session-outline-topics';
-        topics.forEach(topic => {
-          const chip = document.createElement('span');
-          chip.textContent = `${topic.label || topic.topic_id}（${topic.segment_count}）`;
-          chips.append(chip);
-        });
-        body.append(chips);
-      } else if (row.title_source === 'outline') {
-        const none = document.createElement('small');
-        none.textContent = result.transformer_available
-          ? 'この区間にテーマ分類された発話はありません'
-          : 'テーマ分析は未実行です';
-        body.append(none);
-      }
-      entry.append(time, body);
-      list.append(entry);
-    });
-    section.append(list);
-    const foot = document.createElement('p');
-    foot.className = 'session-outline-note';
-    foot.textContent = '「AI議題」はAI仕上げが作った議題見出し、「テーマ」は議題のない区間をTransformerの意味クラスタから名付けた候補です。どちらも原文で確認してください。';
-    section.append(foot);
-    if (result.outline_available) {
-      const jump = document.createElement('button');
-      jump.type = 'button';
-      jump.className = 'secondary-button compact-button';
-      jump.textContent = '議題の要点を見る';
-      jump.addEventListener('click', () => {
-        setItemTab('summary');
-        document.querySelector('#outline-view')?.scrollIntoView({block: 'start'});
-      });
-      section.append(jump);
-    }
-  }
-  host.append(section);
-  box.hidden = false;
-  // Nothing to read yet: stay out of the way of the editing screen below.
-  if (!plan.available && !result.available) box.open = false;
 }
 
 function renderOutline(outline) {
@@ -332,7 +201,7 @@ function renderOutline(outline) {
   }
   const segments = (currentJob && Array.isArray(currentJob.segments) ? currentJob.segments : [])
     .slice().sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
-  const timed = segments.filter(analysisEvidenceTimeValid);
+  const timed = segments.filter(validSegmentTime);
   const mediaLength = mediaPlayer && Number.isFinite(mediaPlayer.duration) ? mediaPlayer.duration : 0;
   const wholeEnd = Math.max(mediaLength, ...timed.map(segment => segment.end), 0);
   if (timed.length) {
@@ -515,31 +384,7 @@ function kushinadaEmotion(segment) {
   return data && data.label ? data.label : '';
 }
 
-function renderEmotionSummary(summary) {
-  const view = document.querySelector('#emotion-view');
-  const content = document.querySelector('#emotion-content');
-  content.replaceChildren();
-  if (!summary || !summary.enabled) { view.hidden = true; return; }
-  if (summary.status === 'failed') {
-    const chip = document.createElement('span');
-    chip.className = 'emotion-chip error';
-    chip.textContent = `感情分析は未完了: ${summary.error || '詳細不明'}`;
-    content.append(chip);
-  } else {
-    const modelNames = {};
-    (summary.models || []).forEach(model => { modelNames[model.key] = model.name || model.key; });
-    Object.entries(summary.label_counts || {}).forEach(([modelKey, counts]) => {
-      const labels = Object.values(counts || {})
-        .sort((a, b) => Number(b.count || 0) - Number(a.count || 0))
-        .map(item => `${item.label_ja || item.label}: ${item.count}`);
-      const chip = document.createElement('span');
-      chip.className = 'emotion-chip';
-      chip.textContent = `${modelNames[modelKey] || modelKey} / ${labels.join('、') || 'データなし'}`;
-      content.append(chip);
-    });
-  }
-  view.hidden = false;
-}
+
 
 function syncMediaPlayback(currentTime) {
   if (!currentJob || !Array.isArray(currentJob.segments)) return;
@@ -664,7 +509,7 @@ function renderMediaBasicInfo(job) {
   };
   const general = document.createElement('dl');
   add(general, 'アプリへの取込日時', job.created_at || '不明');
-  add(general, '文字起こしの最終時刻', analysisEndpointText(job.duration, job.timed_turn_count, job.missing_time_turn_count));
+  add(general, '文字起こしの最終時刻', transcriptEndpointText(job.duration, job.timed_turn_count, job.missing_time_turn_count));
   target.append(general);
   if (!job.media_assets?.length) {
     const note = document.createElement('p');
@@ -694,10 +539,8 @@ function renderMediaBasicInfo(job) {
 function renderResult(job) {
   if (rerunSpeakerIdentificationButton) rerunSpeakerIdentificationButton.disabled = false;
   if (speakerIdentityProvider) speakerIdentityProvider.disabled = false;
-  const evidenceReturnButton = document.querySelector('#return-to-analysis-evidence');
-  if (evidenceReturnButton) evidenceReturnButton.hidden = analysisEvidenceReturn?.itemId !== job.id;
-  analysisCatalogLoaded = false;
-  analysisCatalog = [];
+
+
   currentJob = deepCopy(job);
   currentJobBaseline = deepCopy(job);
   resultSaveConflict = false;
@@ -736,7 +579,7 @@ function renderResult(job) {
   renderMeetingMinutes(currentJob.meeting_minutes, job.id);
   renderOutline(job.outline);
   renderSessionOutline(job.session_outline, job.outline);
-  renderEmotionSummary(job.emotion_analysis);
+
   renderMedia(job);
   renderSessionProfile();
   renderSpeakerEditor();

@@ -76,8 +76,6 @@ code, pre, kbd, .app-brand-version, .connection-devices b, .flow-step-index, .st
 .view-tab { min-height: 44px; padding: 0 16px; border: 0; border-radius: 8px; color: var(--on-shell); font-weight: 600; }
 .view-tab:hover { background: var(--shell-hover-2); color: #fff; }
 .view-tab.active { background: #fff; color: var(--accent-strong); font-weight: 700; box-shadow: 0 2px 6px rgba(0,0,0,.08); }
-#show-analysis-button::after { background: rgba(255,255,255,.16); color: inherit; }
-#show-analysis-button.active::after { background: rgba(21,64,48,.1); }
 .connection-button { border-color: rgba(255,255,255,.12); background: var(--shell-deeper); color: var(--on-shell); }
 .connection-button:hover { border-color: var(--execute); color: #fff; }
 .connection-devices b { background: rgba(255,255,255,.1); color: var(--on-shell-dim); }
@@ -93,7 +91,7 @@ code, pre, kbd, .app-brand-version, .connection-devices b, .flow-step-index, .st
 .secondary-button:hover { border-color: #C5D1CA; background: var(--soft-hover-2); color: var(--shell); }
 .field input, .field select, .field textarea, textarea { border: 1.5px solid #C5D1CA; border-radius: 10px; }
 .field input:focus, .field select:focus, .field textarea:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(31,122,90,.2); }
-.workspace-card, .progress-card, .result-card, .library-card, .speaker-registry-card, .analysis-card { border: 1px solid var(--line); border-radius: 14px; }
+.workspace-card, .progress-card, .result-card, .library-card, .speaker-registry-card { border: 1px solid var(--line); border-radius: 14px; }
 
 /* 独立タブは横スクロールで表示し、狭い画面でも項目を省略しない。 */
 .app-bar-inner { width: calc(100% - 32px); max-width: none; min-height: 60px; flex-wrap: wrap; gap: 8px 16px; padding: 8px 0; }
@@ -107,7 +105,6 @@ code, pre, kbd, .app-brand-version, .connection-devices b, .flow-step-index, .st
 @media (min-width: 1280px) { .app-clock { display: inline; } }
 @media (max-width: 959px) {
   .app-nav .view-tab { padding: 0 12px; }
-  #show-analysis-button::after { display: none; }
 }
 .prior-data-card { width: 100%; max-width: 1100px; margin: 0 auto; padding: clamp(16px, 3vw, 32px); }
 .prior-data-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }

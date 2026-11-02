@@ -11,9 +11,9 @@ import unicodedata
 import uuid
 from typing import Any
 
-from ..analysis_insights import build_session_outline
+
 from ..text_utils import clean_multiline, clean_single_line, json_load
-from .emotion import emotion_label_ja
+from .emotion_metadata import emotion_label_ja
 from .meeting_minutes import normalize_meeting_minutes
 from .outputs import SPEAKER_THEME_COLORS
 from .speaker_registry import (
@@ -231,25 +231,24 @@ def row_meeting_minutes(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def row_session_outline(row: sqlite3.Row, session_profile: dict[str, Any]) -> dict[str, Any]:
-    """Join the planned agenda, the saved agenda sections and the saved themes."""
-    try:
-        saved = json_load(row["transformer_analysis_json"], {})
-    except (KeyError, IndexError):
-        saved = {}
-    transformer = saved if isinstance(saved, dict) else {}
-    # The analysis screen owns the exact staleness check; here the saved revisions
-    # answer the question this block asks: was this run made from the current text?
-    saved_revisions = tuple(
-        value if isinstance(value, int) and not isinstance(value, bool) else None
-        for value in (transformer.get("source_revision"), transformer.get("analysis_revision"))
-    )
-    stale = bool(transformer) and saved_revisions != (
-        int(row["revision_count"] or 0), int(row["analysis_revision"] or 0),
-    )
-    return build_session_outline(
-        outline=json_load(row["outline_json"], None), transformer=transformer,
-        session_profile=session_profile, transformer_stale=stale,
-    )
+    """保存された議題とアウトラインを表示用に整える。"""
+    outline = json_load(row["outline_json"], {}) or {}
+    rows = []
+    for section in outline.get("sections", []) or []:
+        if not isinstance(section, dict):
+            continue
+        start = float(section.get("start") or 0)
+        end = max(start, float(section.get("end") or start))
+        rows.append({"start": start, "end": end, "title": str(section.get("title") or "議題"),
+                     "title_source": "outline", "bullet_count": len(section.get("bullets") or []),
+                     "segment_ids": list(section.get("segment_ids") or [])[:50]})
+    items = [{"index": i + 1, "text": text.strip()[:120], "status": "unmatched", "segment_count": None}
+             for i, text in enumerate(str(session_profile.get("moderator_guide") or "").splitlines()[:40]) if text.strip()]
+    return {"plan": {"available": bool(items), "source": "moderator_guide" if items else "",
+                     "items": items, "item_count": len(items), "discussed_count": 0,
+                     "unmatched_count": len(items), "match": "none"},
+            "result": {"available": bool(rows), "rows": sorted(rows, key=lambda r: (r["start"], r["end"])),
+                       "sources": ["outline"] if rows else [], "outline_available": bool(rows)}}
 
 
 def row_speaker_profiles(

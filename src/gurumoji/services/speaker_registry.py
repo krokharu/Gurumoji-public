@@ -21,7 +21,7 @@ import uuid
 from typing import Any, Callable
 
 from ..handlers.speaker_registry import SpeakerRegistryConflictError
-from .group_analysis import analysis_csv_safe
+from .transcript_shared import csv_safe
 from ..text_utils import clean_multiline, clean_single_line, json_load, normalize_attributes, normalize_tags, utc_now_iso
 
 SPEAKER_REGISTRATION_STATUSES = {
@@ -517,7 +517,7 @@ def speaker_registry_csv_bytes(records: list[dict[str, Any]]) -> bytes:
     custom_headers = list(attribute_headers.values())
     stream = io.StringIO(newline="")
     writer = csv.DictWriter(stream, fieldnames=fixed_headers + custom_headers)
-    writer.writerow({header: analysis_csv_safe(header) for header in fixed_headers + custom_headers})
+    writer.writerow({header: csv_safe(header) for header in fixed_headers + custom_headers})
     for record in records:
         row = {
             "参加者コード": record["participant_code"],
@@ -533,5 +533,5 @@ def speaker_registry_csv_bytes(records: list[dict[str, Any]]) -> bytes:
             "有効": "1" if record["active"] else "0",
             **{attribute_headers[key]: value for key, value in record["attributes"].items()},
         }
-        writer.writerow({key: analysis_csv_safe(value) for key, value in row.items()})
+        writer.writerow({key: csv_safe(value) for key, value in row.items()})
     return ("\ufeff" + stream.getvalue()).encode("utf-8")
