@@ -1,0 +1,1 @@
+"""Gurumoji application package."""

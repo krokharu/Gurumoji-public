@@ -1,0 +1,81 @@
+    <section id="speaker-registry-card" class="view speaker-registry-card" role="tabpanel" aria-labelledby="show-speakers-button" hidden>
+      <header class="view-header registry-header">
+        <div>
+          <p class="view-kicker">話者管理</p>
+          <h1 id="speaker-management-title">話者管理</h1>
+          <p>参加者情報と事前アンケート回答を一元管理し、回答傾向や会話データとの関係を分析できます。</p>
+        </div>
+        <div class="registry-actions">
+          <button id="import-speakers-button" class="secondary-button" type="button">CSVを読み込む</button>
+          <a class="secondary-button registry-export" href="/api/speakers/export.csv" download>保存済みCSVを書き出す</a>
+          <button id="add-speaker-button" class="primary-button small" type="button">＋ 新しい話者</button>
+          <input id="speaker-csv-input" class="visually-hidden" type="file" accept=".csv,text/csv">
+        </div>
+      </header>
+
+      <div class="registry-overview" aria-label="話者管理の概要">
+        <div><span>登録話者</span><strong id="registry-total-metric">—</strong><small>人</small></div>
+        <div><span>有効</span><strong id="registry-active-metric">—</strong><small>人</small></div>
+        <div><span>アンケート項目</span><strong id="registry-survey-metric">—</strong><small>問</small></div>
+        <div><span>保存状態</span><strong id="registry-dirty-metric">確認中</strong></div>
+      </div>
+
+      <details class="registry-guide">
+        <summary>Googleフォーム・CSVとの連携方法</summary>
+        <p>Googleフォームの「回答」→「︙」→「回答をダウンロード（.csv）」で取得したCSVを読み込めます。参加者コードで既存話者と結合し、未知の質問列を事前アンケート回答として保持・分析します。</p>
+      </details>
+
+      <div class="registry-toolbar-shell">
+        <div class="registry-toolbar">
+          <label class="field"><span>話者を検索</span><input id="speaker-registry-search" type="search" placeholder="名前・コード・組織・タグ・アンケート回答"></label>
+          <label class="field"><span>役割</span><select id="speaker-registry-role-filter"><option value="">すべての役割</option></select></label>
+          <label class="mini-check"><input id="speaker-registry-show-inactive" type="checkbox" checked>無効な話者も表示</label>
+          <button id="speaker-registry-clear-filters" class="secondary-button compact-button" type="button">条件をクリア</button>
+        </div>
+        <p id="speaker-registry-count" aria-live="polite">読み込んでいます…</p>
+      </div>
+
+      <div id="speaker-registry-message" class="alert" role="alert" hidden></div>
+      <section id="speaker-draft-recovery" class="draft-recovery" aria-label="未保存内容の退避" hidden>
+        <p data-draft-count></p><button id="export-speaker-draft" class="secondary-button" type="button">未保存内容をJSONで退避</button>
+      </section>
+      <section id="speaker-import-preview" class="draft-recovery" aria-labelledby="speaker-import-title" hidden>
+        <h3 id="speaker-import-title">CSV取込プレビュー（未保存）</h3>
+        <p id="speaker-import-summary"></p><ul id="speaker-import-columns"></ul>
+        <p>編集に反映した後も保存前に内容を確認できます。「変更を保存」で確定します。</p>
+        <button id="apply-speaker-import" class="secondary-button" type="button">未保存の編集へ反映</button>
+        <button id="cancel-speaker-import" class="secondary-button" type="button">キャンセル</button>
+      </section>
+      <div class="spreadsheet-shell">
+        <table class="speaker-sheet" aria-label="話者管理表">
+          <thead>
+            <tr>
+              <th scope="col">有効</th><th scope="col">参加者コード</th><th scope="col">氏名</th><th scope="col">仮名・表示名</th>
+              <th scope="col">既定役割</th><th scope="col">組織</th><th scope="col">部署</th><th scope="col">役職</th>
+              <th scope="col">守秘同意</th>
+              <th scope="col">タグ</th><th scope="col">事前アンケート回答</th><th scope="col">備考</th><th scope="col">操作</th>
+            </tr>
+          <tbody id="speaker-registry-body"></tbody>
+        </table>
+      </div>
+      <div id="speaker-registry-list" class="speaker-registry-list" aria-live="polite"></div>
+
+      <!-- The speaker table is the main task; survey analysis follows it (UX-07). -->
+      <section id="speaker-survey-analysis" class="speaker-survey-analysis" aria-labelledby="speaker-survey-analysis-title">
+        <header>
+          <div>
+            <h3 id="speaker-survey-analysis-title">事前アンケート分析</h3>
+            <p>質問別の回答分布、回答率、数値要約、2項目クロス集計、該当参加者を確認できます。</p>
+          </div>
+        </header>
+        <div id="speaker-survey-analysis-content" aria-live="polite"></div>
+      </section>
+
+      <div class="registry-save-bar">
+        <div>
+          <strong id="registry-save-state">保存済み</strong>
+          <span>CSV取込も含め、変更内容は「変更を保存」でGurumoji実行環境に反映されます。</span>
+        </div>
+        <button id="save-speakers-button" class="primary-button small" type="button" disabled>変更を保存</button>
+      </div>
+    </section>

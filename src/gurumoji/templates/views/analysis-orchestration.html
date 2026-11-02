@@ -1,0 +1,110 @@
+  <dialog id="orchestration-settings" class="app-dialog orchestration-settings" aria-labelledby="orchestration-settings-title">
+    <form id="orchestration-form" method="dialog">
+      <header class="app-dialog-header">
+        <p class="view-kicker">CORE / HANDLER</p>
+        <h2 id="orchestration-settings-title">問いを起点に、自律分析</h2>
+        <p>Coreが次の問いを選び、Handlerが発注・保存・停止を管理します。既存の基礎分析は別の実行経路として残ります。</p>
+      </header>
+      <p id="orchestration-settings-target" class="orchestration-target"></p>
+      <div id="orchestration-settings-message" class="alert" role="alert" hidden></div>
+      <label class="field"><span>明らかにしたいこと</span><textarea id="orchestration-question" rows="3" maxlength="2000" required placeholder="例：意見が変わった場面と、その根拠を確かめたい"></textarea></label>
+      <div class="orchestration-form-grid">
+        <label class="field"><span>AIの実行先（共通）</span><select id="orchestration-provider"><option value="lmstudio">LM Studio（ローカル）</option><option value="openai">OpenAI（クラウド）</option><option value="google">Google Gemini（クラウド）</option></select></label>
+        <label class="field"><span>モデルID</span><input id="orchestration-model" maxlength="200" placeholder="空欄なら設定済みモデル"></label>
+      </div>
+      <p class="field-note">Core・会話解釈・独立検証・批判者・専門オーケストレータに適用。Handlerはアプリの処理、数量・統計はPython集計です。全担当がローカルなら、必要な原文とObsidian知識を段階取得し、モデルの入力上限を確認します。</p>
+      <details class="orchestration-role-settings"><summary>担当ごとにモデルを変える</summary><div id="orchestration-role-overrides"></div></details>
+      <div id="orchestration-cloud-disclosure" class="orchestration-consent" hidden>
+        <strong>会話原文がクラウドへ送信されます</strong>
+        <p id="orchestration-cloud-targets"></p>
+        <label class="check-row"><input id="orchestration-cloud-consent" type="checkbox"><span>この実行の会話原文・発話ID・話者情報・分析目的・途中結果を、上記のサービスへ分析のために送ることに同意する</span></label>
+      </div>
+      <fieldset class="orchestration-stop-settings">
+        <legend>どこで止めるか</legend>
+        <div class="orchestration-stop-options">
+          <label><input name="orchestration_stop" type="radio" value="time"><span>時間</span></label>
+          <label><input name="orchestration_stop" type="radio" value="iterations"><span>繰り返し回数</span></label>
+          <label><input name="orchestration_stop" type="radio" value="importance"><span>重要度</span></label>
+          <label><input name="orchestration_stop" type="radio" value="auto" checked><span>AIお任せ</span></label>
+        </div>
+        <div class="orchestration-form-grid">
+          <label class="field" id="orchestration-time-field"><span>時間上限（分）</span><input id="orchestration-time" type="number" min="1" max="1440"><small>空欄なら時間の上限なし</small></label>
+          <label class="field" id="orchestration-iterations-field"><span>繰り返し上限（巡）</span><input id="orchestration-iterations" type="number" min="1" max="1000"><small>空欄なら回数の上限なし。専門側の追加分析後にCoreが統合・終了を判断</small></label>
+          <label class="field" id="orchestration-importance-field"><span>追加分析の重要度</span><select id="orchestration-importance"><option value="high">高以上</option><option value="medium" selected>中以上</option><option value="low">低以上</option></select></label>
+        </div>
+        <p id="orchestration-stop-explanation" class="field-note"></p>
+      </fieldset>
+      <fieldset class="orchestration-budget-settings">
+        <legend>すべてのモードに適用する安全上限</legend>
+        <div class="orchestration-form-grid">
+          <label class="field"><span>AI呼出し上限</span><input id="orchestration-max-calls" type="number" min="1" max="1000" value="160" required><small>原文の分割分析・尺度設計・検証を含む上限。必要に応じて減らせます</small></label>
+          <label class="field"><span>登録タスク上限</span><input id="orchestration-max-tasks" type="number" min="1" max="2000" value="400" required></label>
+          <label class="field"><span>同時実行上限</span><input id="orchestration-concurrency" type="number" min="1" max="4" value="1" required></label>
+        </div>
+        <p class="field-note">無上限にできるのは時間と回数だけです。上限・利用者停止は批判レビューより優先。停止不能な呼出しの完了待ちや費用が残る場合があります。</p>
+      </fieldset>
+      <fieldset class="orchestration-output-settings">
+        <legend>完了後の保存先</legend>
+        <p class="field-note">正常終了した分析は、入力・全量台帳・初期版・結果を固定成果物としてアプリに保存します。</p>
+        <label class="check-row"><input id="orchestration-publication-all" type="checkbox" aria-describedby="orchestration-publication-disclosure"><span>この新しい実行が正常終了したら、設定済みの4つのVaultにも出力する</span></label>
+        <p id="orchestration-publication-disclosure" class="field-note">対象はInput／Orchestrator／Visualization／Researchの4つ一式です。Researchには保存時点の発話本文も複製します。生成ノートは既存の履歴保護経路で更新し、手動編集の履歴と削除済みノートの保護を維持します。研究者所有ノートの本文・タグ・別名は変更しません。停止・取消・失敗した分析は自動出力しません。</p>
+        <p class="field-note">既定はOFFです。この選択は今回開始する実行だけに保存され、過去の実行の再開・再試行には追加されません。</p>
+      </fieldset>
+      <p class="orchestration-boundary">探索的なAI下書きです。実行成功・検証済みの表示は、研究上の結論の確定を意味しません。画面の描画・状態取得にAIは使いません。</p>
+      <div class="app-dialog-actions"><button id="orchestration-settings-close" class="secondary-button" type="button">閉じる</button><button id="orchestration-history" class="secondary-button" type="button">保存済み実行</button><button id="orchestration-start" class="primary-button" type="submit">自律分析を開始</button></div>
+      <div id="orchestration-history-list" aria-live="polite"></div>
+    </form>
+  </dialog>
+
+  <dialog id="orchestration-live" class="app-dialog orchestration-live" aria-labelledby="orchestration-live-title">
+    <header class="orchestration-live-header">
+      <div><p class="view-kicker">LIVE ANALYSIS · CORE / HANDLER</p><h2 id="orchestration-live-title">分析の実行状況</h2><p id="orchestration-live-target"></p></div>
+      <button id="orchestration-live-close" class="secondary-button" type="button">閉じる</button>
+    </header>
+    <div class="orchestration-live-toolbar"><span id="orchestration-status" class="orchestration-status" role="status" aria-live="polite"></span><span id="orchestration-updated"></span><label class="check-row"><input id="orchestration-reduced-motion" type="checkbox"><span>動きを抑える</span></label></div>
+    <div id="orchestration-live-message" class="alert" role="alert" hidden></div>
+    <fieldset id="orchestration-recovery" class="orchestration-recovery" hidden>
+      <legend>結果不明の呼出しを確認</legend>
+      <p>下記は実行済みか確認できない呼出しです。放棄した結果は採用せず、その呼出しを再送しません。既に発生した費用は不明なまま残ります。Coreの判断が失われた場合は実行障害で終了することがあります。</p>
+      <div id="orchestration-recovery-tasks"></div>
+      <button id="orchestration-abandon" class="secondary-button danger" type="button" disabled>選択した呼出しを放棄して復旧</button>
+    </fieldset>
+    <p id="orchestration-live-question" class="orchestration-question"></p>
+    <section id="orchestration-initial" class="orchestration-initial" aria-labelledby="orchestration-initial-title" hidden>
+      <h3 id="orchestration-initial-title">初期分析の保存地点 <span class="orchestration-kind">CODE</span></h3>
+      <p id="orchestration-initial-summary" class="field-note"></p>
+      <p class="field-note">ローカルのコード処理です。ここではLLMを呼び出しません。再開時は保存済み段階を再利用し、未完了の段階から続けます。停止後に新しい段階・AI処理を開始しません。</p>
+      <ol id="orchestration-initial-stages" class="orchestration-initial-stages"></ol>
+    </section>
+    <div id="orchestration-metrics" class="orchestration-metrics" aria-label="実行数と利用量"></div>
+    <p id="orchestration-usage-note" class="field-note"></p>
+    <section aria-label="担当とタスクの流れ" class="orchestration-flow">
+      <div id="orchestration-role-core" class="orchestration-core-lane"></div>
+      <div id="orchestration-flow-decision" class="orchestration-flow-link"><span>判断・実行案 ↓　↑ 保存済み結果</span><i aria-hidden="true"></i></div>
+      <div id="orchestration-role-handler" class="orchestration-handler-lane"></div>
+      <div id="orchestration-flow-dispatch" class="orchestration-flow-link"><span>正式タスクを発注 ↓　↑ 結果・根拠</span><i aria-hidden="true"></i></div>
+      <div id="orchestration-specialists" class="orchestration-specialists"></div>
+    </section>
+    <p id="orchestration-live-event" class="orchestration-current-event" aria-live="polite"></p>
+    <div class="orchestration-live-actions"><button id="orchestration-viewer" type="button" class="secondary-button">履歴と根拠を読む</button><button id="orchestration-refresh" type="button" class="secondary-button">状態を更新</button><button id="orchestration-stop" type="button" class="secondary-button danger">停止する</button><button id="orchestration-resume" type="button" class="primary-button" hidden>保存地点から再開</button><button id="orchestration-results" type="button" class="secondary-button">保存済み結果・初期版</button></div>
+    <p id="orchestration-stop-reason" class="orchestration-boundary"></p>
+    <p class="field-note">閉じても実行は止まりません。上部の「自律分析」から戻れます。表示の更新・再表示は保存済み状態の取得だけで、AI呼出しやVault出力を開始しません。</p>
+    <section id="orchestration-output" class="orchestration-output" aria-labelledby="orchestration-output-title">
+      <h3 id="orchestration-output-title">固定成果物とVault出力</h3>
+      <p id="orchestration-save-status" role="status" aria-live="polite"></p>
+      <p id="orchestration-publication-status"></p>
+      <p id="orchestration-publication-scope" class="field-note"></p>
+      <ul id="orchestration-publication-outcomes" class="orchestration-publication-outcomes"></ul>
+      <p id="orchestration-publication-note-policy" class="field-note" hidden></p>
+      <div id="orchestration-publication-error" class="alert" role="alert" hidden></div>
+      <ul id="orchestration-output-artifacts" class="orchestration-output-artifacts"></ul>
+      <button id="orchestration-publication-retry" class="secondary-button" type="button" hidden>保存・4 Vault出力を再試行</button>
+      <p id="orchestration-publication-retry-note" class="field-note"></p>
+    </section>
+    <section aria-labelledby="orchestration-conclusion-title"><h3 id="orchestration-conclusion-title">現在の統合結果 · AI下書き</h3><p id="orchestration-conclusion" class="orchestration-conclusion"></p><ul id="orchestration-conclusion-notes" class="orchestration-conclusion-notes"></ul><p id="orchestration-review-state" class="field-note"></p></section>
+    <section id="orchestration-review" aria-labelledby="orchestration-review-title"><h3 id="orchestration-review-title">未解決点とCoreの判断</h3><div id="orchestration-review-content"></div></section>
+    <details class="orchestration-details" open><summary>タスク台帳 <span id="orchestration-task-count"></span></summary><div class="orchestration-table-wrap"><table class="analysis-table"><thead><tr><th scope="col">タスク</th><th scope="col">担当 / モデル</th><th scope="col">状態</th><th scope="col">結果</th></tr></thead><tbody id="orchestration-tasks"></tbody></table></div></details>
+    <details class="orchestration-details"><summary>イベント履歴・実行条件</summary><p id="orchestration-config"></p><ol id="orchestration-events"></ol></details>
+    <p class="orchestration-exports"><a id="orchestration-export-json" href="#" download>全履歴JSON</a> · <a id="orchestration-export-md" href="#" download>Obsidian用ノート</a> <span>（閲覧端末へのダウンロード。上の固定成果物・Vault出力とは別です）</span></p>
+    <section id="orchestration-result-view" hidden aria-labelledby="orchestration-result-title"><h3 id="orchestration-result-title">保存済み結果</h3><div id="orchestration-result-content"></div></section>
+  </dialog>

@@ -1,0 +1,6 @@
+# Install these three CPU wheels from https://download.pytorch.org/whl/cpu first.
+# Apply this constraint file when installing the upstream requirements so pip
+# cannot replace them with CUDA-enabled or incompatible PyTorch distributions.
+torch==2.8.0+cpu
+torchaudio==2.8.0+cpu
+torchvision==0.23.0+cpu

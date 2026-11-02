@@ -1,0 +1,5 @@
+# ソース配布にGitHub管理設定とエージェント用指示を含めない
+/.github/ export-ignore
+/AGENTS.md export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

@@ -1,0 +1,55 @@
+.venv/
+.venv-qwen/
+.venv-nemotron/
+.venv-knowledge-console/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local credentials and environment overrides
+config/tokens.json
+.env
+.env.*
+!.env.example
+
+# User uploads, generated outputs, models, and local application state
+runtime/
+
+# Local logs and OS/editor artifacts
+*.log
+.DS_Store
+Thumbs.db
+*.lnk
+.idea/
+.vscode/
+
+# 開発専用資産は公開用リポジトリに含めない
+output/
+scratch/
+devtools/
+tests/
+
+# 公開ブランチにローカル認証設定・個人の作業状態を含めない
+.codex/
+.agents/
+.claude/
+.obsidian/
+ObusSQL/
+.venv-*/
+*.recovered
+*.bak
+*.orig
+*.rej
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+*.pem
+*.key
+*.p12
+*.pfx

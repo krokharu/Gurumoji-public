@@ -1,0 +1,117 @@
+name: version
+
+# public/releaseへのpushで版を自動で上げ、タグを打つ。
+#   feat: を含む       -> 通常アップデート（β0.46.1 -> β0.47.0）
+#   docs/chore/ci/test/style のみ -> 上げない
+#   それ以外           -> 細かいパッチ（β0.46.1 -> β0.46.2）
+# βの付け外しとメジャーアップデートは自動判断せず、手動実行でだけ行う。
+# 上がった版にはタグとGitHub Release(βは先行リリース)を作る。PR・push時は
+# 書式、README一致、βと「Coming Soon」の整合を検査する。
+# ルールは docs/DEVELOPMENT.md の「バージョンの付け方」。
+
+on:
+  push:
+    branches: [public/release, public/develop]
+  pull_request:
+    branches: [public/release, public/develop]
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: 手動で行う更新（自動判断しない種別）
+        type: choice
+        required: true
+        options: [release, major, beta-on, beta-off]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python .github/scripts/check_public_boundary.py
+      - run: python scripts/bump_version.py check
+
+  bump:
+    needs: check
+    if: github.ref == 'refs/heads/public/release' && github.event_name != 'pull_request' && !startsWith(github.event.head_commit.message, 'chore(release)')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check current version
+        run: python scripts/bump_version.py check
+
+      - name: Collect commit subjects
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            git log -1 --format=%s "$AFTER" > "$RUNNER_TEMP/subjects.txt"
+          else
+            git log --format=%s "$BEFORE..$AFTER" > "$RUNNER_TEMP/subjects.txt"
+          fi
+          cat "$RUNNER_TEMP/subjects.txt"
+
+      - name: Bump version
+        id: bump
+        env:
+          MANUAL_KIND: ${{ inputs.kind }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python scripts/bump_version.py "$MANUAL_KIND" --github-output
+          else
+            python scripts/bump_version.py auto --subjects "$RUNNER_TEMP/subjects.txt" --github-output
+          fi
+
+      - name: Commit and tag
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "タグ $TAG は既にあります。" >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/gurumoji/app.py README.md
+          git commit -m "chore(release): $VERSION"
+          git tag -a "$TAG" -m "$VERSION"
+          git push origin HEAD:public/release "$TAG"
+
+      # 現在の版のタグがあるのにReleaseがなければ作る（毎回実行・冪等）。βは先行リリース扱い。
+      - name: Ensure GitHub Release
+        id: info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/bump_version.py info --github-output
+          TAG=$(grep '^tag=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)
+          VERSION=$(grep '^version=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)
+          PRE=$(grep '^prerelease=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && ! gh release view "$TAG" >/dev/null 2>&1; then
+            FLAGS=""
+            if [ "$PRE" = "true" ]; then FLAGS="--prerelease"; fi
+            gh release create "$TAG" --title "$VERSION" --generate-notes $FLAGS
+            echo "Release $TAG を作成しました。" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "現在の版: $VERSION（タグ $TAG）" >> "$GITHUB_STEP_SUMMARY"

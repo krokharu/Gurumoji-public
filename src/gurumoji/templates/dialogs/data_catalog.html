@@ -1,0 +1,43 @@
+  <dialog id="data-catalog-dialog" class="app-dialog library-group-dialog" aria-labelledby="data-catalog-title">
+    <div class="dialog-heading"><h2 id="data-catalog-title">分析グループとタグ</h2><button id="data-catalog-close" class="secondary-button" type="button">閉じる</button></div>
+    <p>タグは自由な目印です。分析グループは複数の会話をまとめる対象集合です。</p>
+    <p id="data-catalog-status" role="status" aria-live="polite"></p>
+    <details open><summary>グループ・タグを作成する</summary>
+      <form id="data-tag-form">
+        <label class="field"><span>新しいタグ名</span><input id="data-tag-name" required maxlength="120"></label>
+        <button class="secondary-button" type="submit">タグを作成</button>
+      </form>
+      <form id="data-group-form">
+        <label class="field"><span>分析グループ名</span><input id="data-group-name" required maxlength="120"></label>
+        <label class="field"><span>所属の決め方</span><select id="data-group-kind"><option value="manual">会話を選んで付与</option><option value="rule">条件で決める</option></select></label>
+        <fieldset id="data-group-rule" hidden><legend>所属の条件</legend>
+          <label class="field"><span>条件の組み合わせ</span><select id="data-rule-mode"><option value="all">すべて満たす</option><option value="any">いずれかを満たす</option></select></label>
+          <div id="data-rule-conditions"></div>
+          <button id="data-rule-add" class="secondary-button" type="button">条件を追加</button>
+          <button id="data-rule-preview" class="secondary-button" type="button">所属をプレビュー</button>
+          <p id="data-rule-preview-result" role="status"></p>
+        </fieldset>
+        <button id="data-group-save" class="secondary-button" type="submit">グループを作成</button>
+        <button id="data-group-cancel" class="secondary-button" type="button" hidden>条件の編集を取り消す</button>
+      </form>
+    </details>
+    <details open><summary>会話への付与・解除</summary>
+      <p id="data-selection-count" role="status">0件選択</p>
+      <div id="data-catalog-items" class="data-catalog-items"></div>
+      <label class="field"><span>付与・解除するタグまたはグループ</span><select id="data-assignment"></select></label>
+      <button id="data-assign" class="secondary-button" type="button">選択した会話へ付与</button>
+      <button id="data-unassign" class="secondary-button" type="button">選択した会話から解除</button>
+    </details>
+    <details><summary>名前・条件の変更と削除</summary><div id="data-catalog-entities"></div></details>
+    <details><summary>属性キーの定義</summary>
+      <p>既存の話者属性・CSV列は自動登録されます。「型未確定」は自由入力を妨げません。</p>
+      <div id="data-definition-list"></div>
+      <form id="data-definition-form">
+        <label class="field"><span>対象</span><select id="data-definition-scope"><option value="conversation">会話</option><option value="speaker">話者</option><option value="segment">発話</option></select></label>
+        <label class="field"><span>属性キー</span><input id="data-definition-key" required maxlength="120"></label>
+        <label class="field"><span>型</span><select id="data-definition-type"><option value="string">文字列</option><option value="number">数値</option><option value="integer">整数</option><option value="boolean">真偽値</option></select></label>
+        <label class="field"><span>尺度</span><select id="data-definition-level"><option value="nominal">名義</option><option value="ordinal">順序</option><option value="interval">間隔</option><option value="ratio">比例</option></select></label>
+        <button class="secondary-button" type="submit">定義を保存</button>
+      </form>
+    </details>
+  </dialog>

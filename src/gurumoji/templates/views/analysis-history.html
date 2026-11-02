@@ -1,0 +1,44 @@
+  <dialog id="analysis-history-dialog" class="app-dialog analysis-history-dialog" aria-labelledby="analysis-history-title">
+    <header class="analysis-history-heading">
+      <div><p class="view-kicker">SAVED ANALYSIS · READ ONLY</p><h2 id="analysis-history-title">分析の履歴と根拠</h2><p id="analysis-history-target"></p></div>
+      <button id="analysis-history-close" class="secondary-button" type="button">閉じる</button>
+    </header>
+    <p class="analysis-history-boundary">保存済みの記録を閲覧します。AI下書き・提案と、採用済みの変更を区別します。閲覧ではAI実行・再分析・保存・Vault出力を行いません。</p>
+    <p id="analysis-history-message" role="status" aria-live="polite"></p>
+    <div class="analysis-history-layout">
+      <aside class="analysis-history-runs" aria-labelledby="analysis-history-runs-title">
+        <h3 id="analysis-history-runs-title">会話の保存済み実行</h3>
+        <div id="analysis-history-run-list"></div>
+        <div class="analysis-history-pagination"><button id="analysis-history-runs-prev" class="secondary-button" type="button" disabled>前の実行</button><button id="analysis-history-runs-next" class="secondary-button" type="button" disabled>次の実行</button></div>
+        <p id="analysis-history-runs-page" class="field-note"></p>
+      </aside>
+      <main class="analysis-history-main">
+        <section id="analysis-history-selected" hidden>
+          <div class="analysis-history-run-heading"><h3 id="analysis-history-run-title">実行を選択</h3><button id="analysis-history-refresh" class="secondary-button" type="button">保存記録を再取得</button></div>
+          <p id="analysis-history-run-meta" class="field-note"></p>
+          <p id="analysis-history-audit" class="analysis-history-audit"></p>
+          <section class="analysis-history-summary" aria-labelledby="analysis-history-summary-title"><h4 id="analysis-history-summary-title">統合結果 · AI下書き</h4><p id="analysis-history-summary"></p><div id="analysis-history-summary-links"></div></section>
+          <label class="field analysis-history-version"><span>ラベル・注釈の版</span><select id="analysis-history-version" aria-describedby="analysis-history-version-note"></select></label>
+          <form id="analysis-history-version-form" class="analysis-history-pagination" hidden><label class="field"><span>版番号を指定</span><input id="analysis-history-version-number" type="number" min="0" step="1" required></label><button class="secondary-button" type="submit">この版を表示</button></form>
+          <p id="analysis-history-version-note" class="field-note"></p>
+          <nav class="analysis-history-tabs" aria-label="保存記録の種類"><button id="analysis-history-tab-history" type="button" aria-pressed="true">全履歴</button><button id="analysis-history-tab-results" type="button" aria-pressed="false">分析結果</button><button id="analysis-history-tab-labels" type="button" aria-pressed="false">ラベル変更</button><button id="analysis-history-tab-slides" type="button" aria-pressed="false">スライド</button></nav>
+          <section id="analysis-history-records">
+            <form id="analysis-history-filters" class="analysis-history-filters">
+              <label class="field"><span>担当</span><select id="analysis-history-role"><option value="">すべて</option><option value="core">Core</option><option value="handler">Handler</option><option value="interpretation">会話解釈</option><option value="statistics">数量・統計</option><option value="verification">独立検証</option><option value="critic">批判者</option></select></label>
+              <label class="field"><span>記録の種類</span><select id="analysis-history-kind"><option value="">すべて</option><option value="initial">初期版</option><option value="task">タスク</option><option value="result">結果</option><option value="decision">判断</option><option value="label">ラベル</option><option value="event">イベント</option></select></label>
+              <label class="field"><span>操作</span><select id="analysis-history-operation"><option value="">すべて</option><option value="add">追加</option><option value="update">更新</option><option value="delete">削除</option><option value="proposal">提案</option><option value="adopt">採用</option><option value="reject">却下</option><option value="defer">保留</option><option value="conflict">競合</option></select></label>
+              <label class="field"><span>状態</span><select id="analysis-history-status"><option value="">すべて</option><option value="proposed">提案</option><option value="committed">採用</option><option value="rejected">却下</option><option value="deferred">保留</option><option value="conflict">競合</option><option value="succeeded">処理成功</option><option value="failed">失敗</option><option value="running">実行中</option><option value="pending">待機</option></select></label>
+              <label class="field"><span>開始日（UTC）</span><input id="analysis-history-after" type="date"></label><label class="field"><span>終了日（UTC・当日含む）</span><input id="analysis-history-before" type="date"></label>
+              <button class="secondary-button" type="submit">絞り込む</button><button id="analysis-history-filter-reset" class="secondary-button" type="button">条件を解除</button>
+            </form>
+            <div class="analysis-history-workspace">
+              <section aria-labelledby="analysis-history-timeline-title"><h4 id="analysis-history-timeline-title">時系列の記録</h4><ol id="analysis-history-timeline" class="analysis-history-timeline"></ol><div class="analysis-history-pagination"><button id="analysis-history-prev" class="secondary-button" type="button" disabled>前の記録</button><button id="analysis-history-next" class="secondary-button" type="button" disabled>次の記録</button></div><p id="analysis-history-page" class="field-note"></p></section>
+              <section id="analysis-history-detail" class="analysis-history-detail" aria-label="選択した記録の詳細" tabindex="-1"><p>記録を選ぶと、変更前後・理由・固定原文を確認できます。</p></section>
+            </div>
+          </section>
+          <section id="analysis-history-slides" hidden aria-label="保存済み実行のスライド"></section>
+        </section>
+        <p id="analysis-history-empty">左の実行を選択してください。</p>
+      </main>
+    </div>
+  </dialog>

@@ -1,0 +1,9 @@
+# setup_emotion.bat clones the S3PRL v0.4.17 source tree and installs only
+# the runtime dependency needed by its downstream emotion runner. Installing
+# S3PRL's ".[all]" extra is intentionally avoided because it includes unrelated
+# packages that require a local C++ compiler on Windows.
+tensorboardX==2.6.4
+# TorchAudio's Windows wheel does not bundle an audio decoder. SoundFile's
+# wheel includes libsndfile and registers the backend used by S3PRL to read the
+# PCM WAV clips generated for emotion analysis.
+soundfile==0.13.1

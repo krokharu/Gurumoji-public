@@ -1,0 +1,224 @@
+    <section id="result-card" class="view result-card" aria-labelledby="result-title" hidden>
+      <header class="item-header">
+        <div class="item-breadcrumb">
+          <button id="new-button" class="breadcrumb-button" type="button">← 処理済みデータ</button>
+        </div>
+        <div class="item-title-row">
+          <div class="item-title">
+            <p class="view-kicker">確認・手動編集</p>
+            <h1 id="result-title">確認・手動編集</h1>
+            <p class="item-help">発話を選ぶと、その箇所の前後を含めて元の音声・動画を確認できます。保存した修正差分は、くしなだ学習用データにも蓄積します。</p>
+          </div>
+          <div class="item-actions">
+            <button id="return-to-analysis-evidence" class="secondary-button" type="button" hidden>見解・文脈検索に戻る</button>
+            <button id="result-analysis-button" class="primary-button small analysis-jump-button" type="button">分析・可視化 →</button>
+          </div>
+        </div>
+        <details id="session-outline" class="session-outline">
+          <summary><span class="session-outline-mark">OUTLINE</span><strong>アウトライン（予定と結果）</strong><span id="session-outline-headline" class="session-outline-headline"></span></summary>
+          <div id="session-outline-content" class="session-outline-content"></div>
+        </details>
+        <nav class="item-tabs" aria-label="作業画面の切り替え" role="tablist">
+          <button type="button" role="tab" class="item-tab active" id="item-tab-transcript" data-item-tab="transcript" aria-selected="true" aria-controls="item-panel-transcript">発話の確認・編集</button>
+          <button type="button" role="tab" class="item-tab" id="item-tab-conversation" data-item-tab="conversation" aria-selected="false" aria-controls="item-panel-conversation">会話・話者</button>
+          <button type="button" role="tab" class="item-tab" id="item-tab-summary" data-item-tab="summary" aria-selected="false" aria-controls="item-panel-summary">議事録・アウトライン</button>
+          <button type="button" role="tab" class="item-tab" id="item-tab-files" data-item-tab="files" aria-selected="false" aria-controls="item-panel-files">ファイル・管理</button>
+        </nav>
+      </header>
+
+      <div id="item-panel-transcript" class="item-panel" role="tabpanel" aria-labelledby="item-tab-transcript" data-item-panel="transcript">
+        <div class="transcript-layout">
+          <aside class="transcript-side">
+            <div id="media-review" class="media-review" hidden>
+              <div class="media-review-head">
+                <div><span class="media-review-kicker">元の音声・動画</span><strong id="media-caption">発話を選択してください</strong></div>
+                <label class="field context-field"><span>前後</span><select id="play-context"><option value="3">3秒</option><option value="5" selected>5秒</option><option value="10">10秒</option><option value="15">15秒</option></select></label>
+              </div>
+              <div id="media-player-host" class="media-player-host"></div>
+              <div class="media-controls">
+                <button id="previous-segment-button" class="secondary-button" type="button">← 前の発話</button>
+                <button id="replay-segment-button" class="secondary-button" type="button">選択箇所を再生</button>
+                <button id="next-segment-button" class="secondary-button" type="button">次の発話 →</button>
+                <label class="mini-check media-autoscroll-label"><input id="media-autoscroll" type="checkbox" checked><span>自動追従</span></label>
+              </div>
+            </div>
+          </aside>
+          <div class="transcript-main">
+            <section id="formatting-result" class="formatting-result" aria-labelledby="formatting-result-title" hidden>
+              <div class="formatting-result-head">
+                <div><span>FORMATTING RESULT</span><h3 id="formatting-result-title">文章整形リザルト</h3></div>
+                <strong id="formatting-result-mode"></strong>
+              </div>
+              <div id="formatting-result-metrics" class="formatting-result-metrics"></div>
+              <div id="formatting-result-details" class="formatting-result-details"></div>
+            </section>
+            <section id="jev-comparison-summary" class="jev-comparison-summary" aria-live="polite" hidden></section>
+            <div class="editor-toolbar">
+              <label class="field"><span>本文キーワード</span><input id="segment-keyword" type="search" placeholder="発話内を検索"></label>
+              <label class="field"><span>話者で絞り込み</span><select id="segment-speaker-filter"><option value="">すべて</option></select></label>
+              <label class="field"><span>感情で絞り込み</span><select id="segment-emotion-filter"><option value="">すべて</option><option value="ang">怒り</option><option value="hap">喜び</option><option value="sad">悲しみ</option><option value="neu">平常</option><option value="none">未設定</option></select></label>
+              <label class="field"><span>AI判定で絞り込み</span><select id="segment-jev-filter"><option value="">すべて</option><option value="both_flagged">両方：修正が必要</option><option value="current_only">現行AIのみ</option><option value="jev_only">Jevのみ</option><option value="both_clear">両方：修正不要</option></select></label>
+              <label class="field"><span>並べ替え</span><select id="segment-sort"><option value="time_asc">時刻順</option><option value="time_desc">時刻の逆順</option><option value="speaker">話者別</option><option value="emotion">感情別</option><option value="keyword">キーワード一致順</option></select></label>
+            </div>
+            <div class="segment-list-header"><p id="segment-count"></p><button id="add-segment-button" class="secondary-button" type="button">＋ 発話を追加</button></div>
+            <div class="segment-undo"><span id="segment-delete-status" role="status" aria-live="polite"></span><button id="undo-segment-delete" class="secondary-button" type="button" hidden>発話の削除を元に戻す</button></div>
+        <div id="segment-editor" class="segment-editor"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="item-panel-conversation" class="item-panel" role="tabpanel" aria-labelledby="item-tab-conversation" data-item-panel="conversation" hidden>
+        <section class="conversation-profile-card">
+          <div class="conversation-profile-head">
+            <div>
+              <h3>会話プロファイルと話者連携</h3>
+              <p>グループインタビュー／会議ごとの役割、条件、フィールドノートを管理します。表示名はこの表で修正でき、各発話の話者も名前で選び直せます。参加者の台帳は<button class="link-button" type="button" data-result-destination="speakers">話者管理</button>で編集します。</p>
+            </div>
+            <div class="speaker-identity-actions">
+              <label class="field"><span>話者特定AI</span><select id="speaker-identity-provider"><option value="openai">OpenAI</option><option value="google">Google Gemini</option><option value="lmstudio">{{ local_llm_label }}</option></select></label>
+              <button id="rerun-speaker-identification" class="secondary-button" type="button">自己紹介から話者を再特定・登録</button>
+              <a id="conversation-speaker-export" class="secondary-button" href="#" download>会話話者CSV</a>
+              <small id="speaker-identity-status">空欄の話者名だけに反映します。</small>
+            </div>
+          </div>
+          <div class="session-profile-grid">
+            <label class="field"><span>会話種別</span><select id="session-type"><option value="focus_group">グループインタビュー</option><option value="meeting">会議</option><option value="chat">雑談</option><option value="interview">インタビュー</option><option value="workshop">ワークショップ</option><option value="other">その他</option></select></label>
+            <label class="field"><span>実施日</span><input id="session-date" type="date"><small id="session-date-note" class="field-note">動画の撮影日時があれば自動入力します。いつでも手動で変更できます。</small></label>
+            <label class="field"><span>場所／オンライン</span><input id="session-location" type="text" maxlength="300" placeholder="会議室、Zoomなど"></label>
+            <label class="field"><span>実施グループID</span><input id="session-interview-group-id" type="text" maxlength="120" placeholder="例：FG-01"><small class="field-note">比較グループ名とは別に、この回を識別するIDです。</small></label>
+            <label class="field"><span>比較グループ</span><input id="session-comparison-group" type="text" maxlength="300" placeholder="例：新UI評価・2026春（同内容の回で統一）"><small class="field-note">同じ質問・議題の回には同じ名称を設定します。</small></label>
+            <label class="field session-wide"><span>目的・調査テーマ</span><textarea id="session-objective" rows="2" placeholder="この会話で明らかにしたいこと"></textarea></label>
+            <label class="field session-wide"><span>質問ガイド／議題</span><textarea id="session-guide" rows="3" placeholder="導入、移行、主要質問、締め／会議アジェンダ"></textarea></label>
+            <label class="field"><span>共通条件・選定条件</span><textarea id="session-conditions" rows="3" placeholder="対象者条件、グループ構成、会議前提"></textarea></label>
+            <details id="session-notes-details" class="session-notes-details session-wide">
+              <summary><span>観察・フィールドノート／会議メモ</span><small id="session-notes-summary">未入力</small></summary>
+              <label class="field"><textarea id="session-field-notes" rows="3" aria-label="観察・フィールドノート／会議メモ" placeholder="非言語反応、座席、力関係、決定事項、次の対応"></textarea></label>
+            </details>
+          </div>
+          <div id="speaker-insights" class="speaker-insights"></div>
+          <div id="speaker-editor" class="speaker-editor"></div>
+        </section>
+      </div>
+
+      <div id="item-panel-summary" class="item-panel" role="tabpanel" aria-labelledby="item-tab-summary" data-item-panel="summary" hidden>
+        <section id="meeting-minutes-view" class="meeting-minutes-view" hidden aria-labelledby="meeting-minutes-title">
+          <div class="meeting-minutes-head">
+            <div>
+              <h3 id="meeting-minutes-title">会議議事録・アクションアイテム</h3>
+              <p>音声から抽出した候補です。優先度・期限・担当を確認してから、CSVまたはJSONを外部アプリへ取り込めます。</p>
+            </div>
+            <div class="meeting-export-actions">
+              <a id="meeting-minutes-download" class="secondary-button" href="#" download>議事録 Markdown</a>
+              <a id="meeting-tasks-download" class="secondary-button" href="#" download>タスク CSV</a>
+              <a id="meeting-json-download" class="secondary-button" href="#" download>連携 JSON</a>
+              <button id="meeting-copy-json" class="secondary-button" type="button">タスクJSONをコピー</button>
+            </div>
+          </div>
+          <p id="meeting-minutes-method" class="meeting-minutes-method"></p>
+          <section class="meeting-obsidian-panel" aria-labelledby="meeting-obsidian-title">
+            <div>
+              <strong id="meeting-obsidian-title">Obsidian連携</strong>
+              <p id="meeting-obsidian-status" role="status">保存状態を確認しています…</p>
+              <small>会議議事録、元発話へのリンク、タスクCSV、連携JSONを同じVault内に保存します。更新時は旧版を残します。</small>
+            </div>
+            <div class="meeting-obsidian-actions">
+              <button id="meeting-obsidian-save" class="primary-button small" type="button">Obsidianに保存</button>
+              <a id="meeting-obsidian-open" class="secondary-button" href="#" hidden>Obsidianで開く</a>
+            </div>
+          </section>
+          <div id="meeting-minutes-summary" class="meeting-minutes-summary" aria-live="polite"></div>
+          <div class="meeting-visual-grid">
+            <section class="meeting-visual-card"><h4>優先度</h4><div id="meeting-priority-chart" class="meeting-priority-chart"></div></section>
+            <section class="meeting-visual-card"><h4>期限</h4><div id="meeting-due-summary" class="meeting-due-summary"></div></section>
+            <section class="meeting-visual-card"><h4>発話量</h4><div id="meeting-speaker-chart" class="meeting-speaker-chart"></div></section>
+          </div>
+          <section class="meeting-task-section">
+            <div class="meeting-section-title"><h4>アクションアイテム</h4><small>担当者は発話者からの候補です</small></div>
+            <div id="meeting-task-list" class="meeting-task-list"></div>
+          </section>
+          <section class="meeting-decision-section">
+            <div class="meeting-section-title"><h4>決定事項候補</h4><small>元発話の時刻を確認できます</small></div>
+            <div id="meeting-decision-list" class="meeting-decision-list"></div>
+          </section>
+        </section>
+        <div id="outline-view" class="outline-view">
+          <div class="outline-title-row">
+            <h3>AI自動生成アウトライン</h3>
+          </div>
+          <div id="outline-content" class="outline-content"></div>
+        </div>
+        <div id="emotion-view" class="emotion-view" hidden>
+          <div class="outline-title-row">
+            <h3>音声感情分析</h3>
+          </div>
+          <div id="emotion-content" class="emotion-content"></div>
+        </div>
+        <section id="result-ai-usage" class="ai-token-usage" aria-label="AIトークン使用量" hidden>
+          <div class="ai-token-heading">
+            <div><span class="ai-token-mark" aria-hidden="true">AI</span><div><small>AI TOKEN USAGE</small><strong data-ai-provider>AI</strong></div></div>
+            <span data-ai-model></span>
+          </div>
+          <div class="ai-token-grid">
+            <div><small>入力トークン</small><strong data-ai-input>0</strong></div>
+            <div><small>出力トークン</small><strong data-ai-output>0</strong></div>
+            <div class="total"><small>合計トークン</small><strong data-ai-total>0</strong></div>
+            <div><small>累計API呼び出し</small><strong data-ai-requests>0回</strong></div>
+          </div>
+          <div class="ai-token-details">
+            <span data-ai-cached hidden>キャッシュ済み <b>0</b></span>
+            <span data-ai-reasoning hidden>推論 <b>0</b></span>
+            <span data-ai-unreported hidden>APIから使用量が返されませんでした</span>
+          </div>
+        </section>
+      </div>
+
+      <div id="item-panel-files" class="item-panel" role="tabpanel" aria-labelledby="item-tab-files" data-item-panel="files" hidden>
+        <details class="item-files-card" id="research-import-panel">
+          <summary>研究ノート・外部分析結果を取り込む</summary>
+          <p>研究ノートの原本はそのまま保持します。解釈・コード案・外部分析結果は未承認として保存します。</p>
+          <button id="research-notes-preview" type="button" class="secondary-button">研究ノートの差分を確認</button>
+          <button id="research-notes-history" type="button" class="secondary-button">取り込み済みノートを読む</button>
+          <label class="field"><span>外部分析結果（JSON）</span><input id="external-analysis-file" type="file" accept="application/json,.json"></label>
+          <button id="external-analysis-import" type="button" class="secondary-button">外部分析結果を登録</button>
+          <p id="research-import-status" role="status" aria-live="polite"></p><div id="research-import-preview"></div>
+        </details>
+        <section class="item-files-card" aria-labelledby="media-basic-info-title">
+          <h3 id="media-basic-info-title">基本情報</h3>
+          <p>メディアの長さと、文字起こしの最終時刻は別の値です。</p>
+          <div id="media-basic-info"></div>
+        </section>
+        <section class="item-files-card">
+          <h3>出力ファイル</h3>
+          <p>編集内容を保存すると、出力ファイルも同じ内容で更新されます。</p>
+          <div id="download-links" class="download-links"></div>
+          <p id="result-output-dir" class="result-output-dir" hidden></p>
+        </section>
+        <section class="result-danger-zone" aria-labelledby="result-danger-title">
+          <div>
+            <h3 id="result-danger-title">データの削除</h3>
+            <p>会話と保存メディアをゴミ箱へ移します。保持期間内は復元できます。出力ファイルと学習履歴は残ります。</p>
+          </div>
+          <button id="delete-record-button" class="secondary-button danger" type="button">このデータを削除</button>
+        </section>
+      </div>
+
+      <div id="save-message" class="alert" role="status" aria-live="polite" aria-atomic="true" hidden></div>
+      <section class="item-files-card" aria-labelledby="notation-title">
+        <h3 id="notation-title">表記ゆれの確認</h3>
+        <p>研究者が本文を編集した発話は除外します。AIが選んだ表記は下書きです。</p>
+        <label for="notation-provider">未確定の表記の送信先</label>
+        <select id="notation-provider"><option value="none">送信なし（確定済みだけ）</option><option value="openai">OpenAI</option><option value="google">Google Gemini</option><option value="lmstudio">LM Studio</option></select>
+        <button id="notation-preview" type="button" class="secondary-button">表記ゆれを統一</button>
+        <button id="notation-load-review" type="button" class="secondary-button">保存した結果を確認</button>
+        <p id="notation-status" role="status" aria-live="polite"></p>
+        <div id="notation-groups"></div>
+        <button id="notation-apply" type="button" class="primary-button small" hidden>表示した候補を適用</button>
+      </section>
+      <section id="result-draft-recovery" class="draft-recovery" aria-label="未保存内容の退避" hidden>
+        <p data-draft-count></p><button id="export-result-draft" class="secondary-button" type="button">未保存内容をJSONで退避</button>
+      </section>
+      <div class="sticky-actions">
+        <button id="save-button" class="primary-button small" type="button">編集内容を保存</button>
+        <button id="obsidian-finishing-button" class="secondary-button" type="button">Obsidianで仕上げ</button>
+      </div>
+    </section>

@@ -1,0 +1,29 @@
+Flask>=3.1,<4
+# Supplies the Windows ffmpeg executable inside the project environment.
+imageio-ffmpeg==0.6.0
+PyYAML>=6.0,<7
+pypdf>=5,<7
+psutil>=6,<8
+whisperx==3.8.6
+openai-whisper==20250625
+# Keep Numba (used by OpenAI Whisper) compatible with NumPy.
+numpy==2.2.6
+networkx==3.6.1
+# WhisperX/faster-whisper uses CTranslate2 for CUDA inference.
+ctranslate2==4.8.1
+# Research analysis and spreadsheet output.
+scipy>=1.13,<2
+statsmodels>=0.14,<0.15
+pyreadstat>=1.2,<2
+scikit-learn>=1.5,<2
+transformers>=4.48,<5
+openpyxl>=3.1,<4
+sudachipy>=0.6.8,<0.7
+sudachidict-core>=20230110
+ginza==5.2.0
+ja-ginza==5.2.0
+spacy>=3.8,<3.9
+# Editable saved-run slide export (no Office/LibreOffice runtime dependency).
+python-pptx>=1.0.2,<2
+# Local orchestration context measurement; never downloads or loads models.
+lmstudio>=1.5,<2
