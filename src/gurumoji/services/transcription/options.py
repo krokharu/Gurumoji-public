@@ -11,7 +11,9 @@ from ...jev_review import JEV_DEFAULT_MODEL
 
 ACTIVE_JOB_STATUSES = frozenset({"queued", "running", "committing"})
 MODEL_NAMES = {"tiny", "base", "small", "medium", "large-v3"}
-TRANSCRIPTION_BACKENDS = {"whisperx", "qwen3_nemotron"}
+TRANSCRIPTION_BACKENDS = {"whisperx", "qwen3_nemotron", "haas_ja"}
+# Backends that run in isolated environments and diarize with Nemotron 3.
+EXTERNAL_STACK_BACKENDS = frozenset({"qwen3_nemotron", "haas_ja"})
 LANGUAGES = {None, "ja", "en", "zh", "ko"}
 AIST_EMOTION_MODEL_CHOICES = {"kushinada", "izanami", "both"}
 CONVERSATION_MODES = {
@@ -66,3 +68,5 @@ class JobOptions:
     write_word_cloud: bool = False
     generate_meeting_minutes: bool = False
     transcription_backend: str = "whisperx"
+    prior_speakers: tuple[tuple[str, str], ...] = ()
+    prior_outline: str = ""

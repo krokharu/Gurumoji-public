@@ -63,6 +63,8 @@ def filters(
 ) -> list[str]:
     if preset not in presets:
         raise RuntimeError(f"未対応の音声前処理です: {preset}")
+    if presets[preset].get("engine") == "reuse":
+        raise RuntimeError("RE-USEはFFmpegフィルターではなく、専用の音声モデルで処理します。")
     preset_filters = presets[preset]["filters"]
     if not preset_filters:
         return []
@@ -84,6 +86,25 @@ def preprocess(
     presets: dict[str, dict[str, Any]], sample_rate: int,
     run_subprocess: Callable[..., Any], check_cancelled: Callable[[], None] | None = None,
 ) -> Path:
+    if preset == "reuse":
+        from .reuse import run_reuse, reuse_available, reuse_setup_message
+        if not reuse_available():
+            raise RuntimeError(reuse_setup_message())
+        prepared = output_path.with_name(output_path.stem + "-reuse-input.wav")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            completed = run_subprocess(
+                ["ffmpeg", "-hide_banner", "-nostdin", "-y", "-i", str(input_path),
+                 "-map", "0:a:0", "-vn", "-ac", "1", "-ar", str(sample_rate),
+                 "-c:a", "pcm_s16le", str(prepared)],
+                timeout=float(os.environ.get("MOJIOKOSI_FFMPEG_TIMEOUT_SECONDS", "7200")),
+                check_cancelled=check_cancelled,
+            )
+            if completed.returncode != 0:
+                raise RuntimeError("RE-USE用の音声変換に失敗しました。")
+            return run_reuse(prepared, output_path, check_cancelled)
+        finally:
+            prepared.unlink(missing_ok=True)
     selected_filters = filters(preset, presets, sample_rate)
     if not selected_filters:
         return input_path
@@ -107,6 +128,19 @@ def preprocess_interval(
     presets: dict[str, dict[str, Any]], sample_rate: int,
     run_subprocess: Callable[..., Any], check_cancelled: Callable[[], None] | None = None,
 ) -> Path:
+    if preset == "reuse":
+        from .reuse import reuse_available, reuse_setup_message
+        if not reuse_available():
+            raise RuntimeError(reuse_setup_message())
+        clip = output_path.with_name(output_path.stem + "-reuse-clip.wav")
+        try:
+            preprocess_interval(input_path, clip, start, end, "none", presets=presets,
+                                sample_rate=sample_rate, run_subprocess=run_subprocess,
+                                check_cancelled=check_cancelled)
+            return preprocess(clip, output_path, preset, presets=presets, sample_rate=sample_rate,
+                              run_subprocess=run_subprocess, check_cancelled=check_cancelled)
+        finally:
+            clip.unlink(missing_ok=True)
     selected_filters = filters(preset, presets, sample_rate)
     start, end = max(0.0, float(start)), max(max(0.0, float(start)), float(end))
     if end - start < 0.05:
@@ -144,6 +178,11 @@ DIARIZATION_AUDIO_PRESET: dict[str, Any] = {
 AUDIO_PREPROCESS_PRESETS: dict[str, dict[str, Any]] = {
     "none": {
         "label": "加工なし",
+        "filters": [],
+    },
+    "reuse": {
+        "label": "NemotronLabs RE-USE（実験的）",
+        "engine": "reuse",
         "filters": [],
     },
     "light": {

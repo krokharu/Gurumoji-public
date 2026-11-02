@@ -21,12 +21,8 @@ const cleanupEffortDescriptions = {
   high: '文脈を参考にして整えます。',
   ultra: '文脈を参考に、文章を詳しく整えます。'
 };
-const effortIconPaths = {
-  outline: '<path d="M6 5h12v14H6m12-7h-5"/><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="13" cy="12" r="2"/>',
-  cleanup: '<path d="M13 3H4v18h14v-8M7 7h5M7 11h3m2 5 8-8-3-3-8 8-1 4z"/>',
-  name_extract: '<rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M4 17c1-5 7-5 8 0m3-8h4m-4 5h4"/>',
-  name_verify: '<path d="M5 3h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-8l-6 3 1-3H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm2 8 3 3 7-7"/>'
-};
+const effortIconFiles = {outline: '15-outline', cleanup: '06-transcript-edit', name_extract: '055-speaker-profile', name_verify: '084-read-complete'};
+const effortIconBase = document.querySelector('meta[name="gurumoji-icon-base"]')?.content || 'static/icons/';
 let localEffortCapability = null;
 let localEffortModel = null;
 let localEffortGeneration = 0;
@@ -40,7 +36,7 @@ if (effortRoot) {
     const levels = cleanup ? cleanupEffortLevels : effortLevels;
     const thinkingMode = `<div class="effort-thinking" ${cleanup ? 'hidden' : ''}><span class="effort-group-title">AIで詳しく確認</span><div class="thinking-mode effort-options">${[['on', 'する'], ['off', 'しない（OFF／最小）']].map(([value, label]) => `<label><input type="radio" name="ai_thinking_mode_${key}" value="${value}" ${value === 'on' ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div>`;
     const choices = cleanup ? levels : [['off', 'OFF／最小'], ...levels];
-    disclosure.innerHTML = `<summary><span class="effort-icon" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${effortIconPaths[key]}</svg></span><strong>${title}</strong><span class="effort-current"></span><span class="effort-open-label">設定を開く</span><span class="effort-status"></span></summary><fieldset class="effort-card" data-stage="${key}" aria-describedby="effort-description-${key} effort-capability-${key}"><legend>${title}の設定</legend><p>${detail}</p><input type="hidden" name="ai_effort_${key}" value="medium"><div class="effort-simple"><label for="effort-select-${key}">${cleanup ? '文章の調整レベル' : '要求する検討の詳しさ'}</label><select id="effort-select-${key}" class="effort-select">${choices.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}<option value="on" hidden>する（選択した詳しさを維持）</option></select></div><div class="effort-detailed" hidden>${thinkingMode}<div class="effort-grades"><span class="effort-group-title">${cleanup ? '文章の調整レベル' : '確認の詳しさ'}</span><div class="effort-options">${levels.map(([value, label]) => `<label><input type="radio" name="ai_effort_choice_${key}" value="${value}" ${value === 'medium' ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div></div><p id="effort-description-${key}" class="effort-description"></p><p id="effort-capability-${key}" class="effort-capability"></p></fieldset><button type="button" class="effort-close">設定を閉じる</button>`;
+    disclosure.innerHTML = `<summary><span class="effort-icon" aria-hidden="true"><img src="${effortIconBase}light/${effortIconFiles[key]}.svg" alt=""></span><strong>${title}</strong><span class="effort-current"></span><span class="effort-open-label">設定を開く</span><span class="effort-status"></span></summary><fieldset class="effort-card" data-stage="${key}" aria-describedby="effort-description-${key} effort-capability-${key}"><legend>${title}の設定</legend><p>${detail}</p><input type="hidden" name="ai_effort_${key}" value="medium"><div class="effort-simple"><label for="effort-select-${key}">${cleanup ? '文章の調整レベル' : '要求する検討の詳しさ'}</label><select id="effort-select-${key}" class="effort-select">${choices.map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}<option value="on" hidden>する（選択した詳しさを維持）</option></select></div><div class="effort-detailed" hidden>${thinkingMode}<div class="effort-grades"><span class="effort-group-title">${cleanup ? '文章の調整レベル' : '確認の詳しさ'}</span><div class="effort-options">${levels.map(([value, label]) => `<label><input type="radio" name="ai_effort_choice_${key}" value="${value}" ${value === 'medium' ? 'checked' : ''}><span>${label}</span></label>`).join('')}</div></div></div><p id="effort-description-${key}" class="effort-description"></p><p id="effort-capability-${key}" class="effort-capability"></p></fieldset><button type="button" class="effort-close">設定を閉じる</button>`;
     disclosure.querySelector('.effort-select').addEventListener('change', event => {
       event.stopPropagation();
       setAiEffortChoice(key, event.target.value);
@@ -74,7 +70,7 @@ if (effortRoot) {
     localEffortModel = null;
     syncAiEffortSettings();
   });
-  ['ai-provider', 'finish-in-obsidian', 'clean-transcript', 'detect-names', 'create-outline'].forEach(id => {
+  ['ai-provider', 'finish-in-obsidian', 'clean-transcript', 'detect-names', 'create-outline', 'jev-compare'].forEach(id => {
     document.getElementById(id)?.addEventListener('change', syncAiEffortSettings);
   });
   document.querySelectorAll('[name="transcript_finishing_mode"]').forEach(input => input.addEventListener('change', syncAiEffortSettings));
@@ -104,21 +100,7 @@ function localEffortSupport(value) {
   return (aliases[value] || []).some(option => allowed.includes(option)) || (allowed.includes('on') && localEffortCapability.default === 'on');
 }
 function aiEffortStagePlan() {
-  // Mirror transcription_start's mode normalization without changing stored
-  // checkbox preferences. Cleanup OFF still suppresses polishing and its outline.
-  const mode = document.querySelector('input[name="transcript_finishing_mode"]:checked')?.value || 'custom';
-  const advanced = mode === 'advanced', recommended = mode === 'recommended';
-  const deferred = mode !== 'off' && !advanced && Boolean(document.querySelector('#finish-in-obsidian')?.checked);
-  const cleanupLevel = readAiEfforts().cleanup;
-  const fullCleanup = advanced || (!recommended && (document.querySelector('#clean-transcript')?.checked || document.querySelector('#jev-compare')?.checked));
-  const recommendedCleanup = recommended && !deferred && Boolean(typeof tokenConfigSnapshot !== 'undefined' && tokenConfigSnapshot.typesafe);
-  const cleanup = mode !== 'off' && cleanupLevel !== 'off' && (deferred || fullCleanup || recommendedCleanup);
-  const contextOutline = cleanup && (deferred || fullCleanup || ['high', 'ultra'].includes(cleanupLevel));
-  const outline = mode !== 'off' && (contextOutline || (!recommended && document.querySelector('#create-outline')?.checked));
-  const names = mode !== 'off' && (advanced || Boolean(document.querySelector('#detect-names')?.checked));
-  return {mode, advanced, deferred, contextOutline,
-    requested: {cleanup: Boolean(cleanup), outline: Boolean(outline), name_extract: names, name_verify: names},
-    configurable: {cleanup: mode !== 'off' && Boolean(recommended || deferred || fullCleanup), outline: Boolean(outline), name_extract: names, name_verify: names}};
+  return transcriptFinishingPlan();
 }
 function aiEffortStageEnabled(key) {
   return aiEffortStagePlan().configurable[key];
@@ -155,8 +137,9 @@ function aiEffortReadiness() {
 }
 function syncAiEffortSettings() {
   const provider = document.querySelector('#ai-provider');
-  const local = provider?.value === 'lmstudio';
   const plan = aiEffortStagePlan();
+  const local = provider?.value === 'lmstudio';
+  const needsCapability = local && Object.values(plan.requested).some(Boolean);
   const notationChoice = document.querySelector('[name="ai_effort_notation"]');
   if (notationChoice) notationChoice.disabled = Boolean(provider?.disabled || provider?.value === 'none' || plan.mode === 'off');
   syncAiEffortMandatedControls(provider, plan);
@@ -164,7 +147,7 @@ function syncAiEffortSettings() {
   if (!local && localEffortModel !== null) {
     localEffortGeneration += 1; localEffortModel = null; localEffortCapability = null; localEffortState = 'idle';
   }
-  if (local && localEffortModel !== model) {
+  if (needsCapability && localEffortModel !== model) {
     localEffortModel = model; localEffortCapability = null; localEffortState = model ? 'pending' : 'unknown';
     const generation = ++localEffortGeneration;
     const current = () => generation === localEffortGeneration && document.querySelector('#ai-provider')?.value === 'lmstudio' && localEffortModel === model && (typeof tokenConfigSnapshot === 'undefined' ? '' : tokenConfigSnapshot.lmstudio_model || '') === model;
@@ -184,7 +167,7 @@ function syncAiEffortSettings() {
   const allowed = Array.isArray(localEffortCapability?.allowed_options) ? localEffortCapability.allowed_options : [];
   const binary = local && allowed.includes('on') && !allowed.some(value => ['minimal', 'low', 'medium', 'high', 'xhigh'].includes(value));
   const retry = document.querySelector('#effort-capability-retry');
-  if (retry) { retry.hidden = !local; retry.disabled = Boolean(provider?.disabled || localEffortState === 'pending'); }
+  if (retry) { retry.hidden = !needsCapability; retry.disabled = Boolean(provider?.disabled || localEffortState === 'pending'); }
   const values = readAiEfforts();
   effortStages.forEach(([key, , , toggle]) => {
     const card = effortRoot?.querySelector(`[data-stage="${key}"]`);
@@ -217,7 +200,7 @@ function syncAiEffortSettings() {
     const label = (cleanup ? cleanupEffortLevels : [['off', 'OFF／最小'], ...effortLevels]).find(([value]) => value === level)?.[1] || level;
     disclosure.querySelector('.effort-current').textContent = `選択値: ${label}`;
     let status = '';
-    if (local && !(cleanup && level === 'off')) {
+    if (local && plan.requested[key]) {
       if (localEffortState === 'pending') status = '対応設定を確認中です。';
       else if (localEffortState === 'error') status = '対応設定の取得に失敗しました。再確認できます。';
       else if (localEffortState === 'mismatch') status = '応答のモデルが一致しません。再確認してください。';
@@ -226,10 +209,11 @@ function syncAiEffortSettings() {
       else if (binary) status = 'ON/OFF型です。段階差は適用せず、選択した詳しさを保持します。ONはモデル既定がONの場合のみ対応します。';
       else status = 'モデルが対応する推論設定へ割り当てます。選択値は変えません。';
     }
-    if (!enabled) status = `この処理は現在無効です。選択値は維持します。 ${status}`;
+    if (!enabled) status = 'この処理は現在無効です。選択値は維持します。';
+    else if (!plan.requested[key]) status = plan.deferred ? '文章の仕上げは後から行います。今回の推論設定確認の対象外です。' : 'この処理は今回実行しません。選択値は維持します。';
     else if (provider?.value === 'none') status = 'AIを選択すると設定できます。選択値は維持します。';
     else if (provider?.disabled) status = `実行中は変更できません。 ${status}`;
-    const compactStatus = !enabled ? '現在無効（選択値は維持）' : provider?.value === 'none' ? 'AI未選択（選択値は維持）'
+    const compactStatus = !enabled ? '現在無効（選択値は維持）' : !plan.requested[key] ? '今回は実行しません（選択値は維持）' : provider?.value === 'none' ? 'AI未選択（選択値は維持）'
       : provider?.disabled ? '実行中は変更できません' : !status ? ''
       : localEffortState === 'pending' ? 'モデルの対応設定を確認中'
       : localEffortState === 'error' ? '対応設定の取得失敗・再確認が必要'

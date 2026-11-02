@@ -1,0 +1,41 @@
+    <section id="preset-data-card" class="view workspace-card prior-data-card" role="tabpanel" aria-labelledby="prior-presets-button" data-prior-panel="presets" hidden>
+      <header class="view-header"><div>
+        <p class="view-kicker">事前設定</p>
+        <h1>プリセットデータ</h1>
+        <p>文字起こしの設定を選択・保存・削除できます。保存したプリセットはこのブラウザーで利用できます。</p>
+      </div></header>
+      <label class="field"><span>プリセット</span><select id="preset-manager-select"></select></label>
+      <label class="field"><span>プリセット名</span><input id="preset-manager-name" type="text" maxlength="60" placeholder="プリセット名を入力（保存用）" autocomplete="off"></label>
+      <div class="prior-data-actions">
+        <button id="preset-manager-save" class="primary-button" type="button">現在の文字起こし設定を保存</button>
+        <button id="preset-manager-delete" class="secondary-button" type="button" hidden>選択したプリセットを削除</button>
+        <button id="preset-manager-open" class="secondary-button" type="button">設定を確認して文字起こしへ</button>
+      </div>
+      <p id="preset-manager-status" role="status" aria-live="polite"></p>
+    </section>
+
+<section id="library-group-dialog" class="view workspace-card prior-data-card" role="tabpanel" aria-labelledby="prior-folders-button" data-prior-panel="folders" hidden>
+    <form id="library-group-create-form">
+      <div class="app-dialog-header">
+        <h2 id="library-group-dialog-title">フォルダー管理</h2>
+        <p>処理済みデータを目的・プロジェクトごとに分類します。</p>
+      </div>
+      <div id="library-group-message" class="alert" hidden></div>
+      <label class="field">
+        <span>フォルダー名</span>
+        <input id="library-group-name" type="text" placeholder="例：2026年春 評価実験" required>
+      </label>
+      <div class="app-dialog-actions">
+        <button id="close-library-group-dialog" class="secondary-button" type="button">データ一覧へ</button>
+        <button class="primary-button small" type="submit">フォルダーを作成</button>
+      </div>
+      <div id="library-group-list" class="library-group-list"></div>
+    </form>
+  </section>
+
+{% include "dialogs/data_catalog.html" %}
+
+    <section id="internal-data-card" class="view workspace-card prior-data-card" role="tabpanel" aria-labelledby="prior-internal-button" data-prior-panel="internal" hidden>
+      <header class="view-header"><div><p class="view-kicker">接続と管理</p><h1>内部データ</h1><p>内部データの管理機能は準備中です。</p></div></header>
+      <div class="internal-coming-soon" role="status"><h2>Coming Soon</h2><p>公開までしばらくお待ちください。</p></div>
+    </section>

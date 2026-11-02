@@ -25,7 +25,7 @@ cd Gurumoji-public
 2. ブラウザーで `http://127.0.0.1:7860` を開きます。
 3. 動画・音声を選び、モデル・話者分離・AI仕上げの条件を確認して開始します。
 4. 結果を元の録音と照合し、発話・時刻・話者名を必要に応じて編集します。
-5. 保存と書き出しを行います。分析やAIの解釈は、入力した録音や研究目的に照らして採用判断を行ってください。
+5. 保存と書き出しを行います。AIの仕上げや要約は元の録音と照合してください。分析・可視化は公開準備中です。
 
 AI仕上げには接続先や追加設定が必要な処理があります。[AI仕上げの設定](AI_EFFORT.md) と [データと外部通信](DATA_AND_PRIVACY.md) を確認してください。
 
@@ -67,3 +67,11 @@ Windowsの起動ログは `runtime/logs/startup-*.log` に保存されます。�
 [Colabノートブック](https://colab.research.google.com/github/krokharu/Gurumoji-public/blob/public%2Frelease/notebooks/Gurumoji_Colab.ipynb) を上から順に実行します。GPU、モデルの利用条件、認証情報、Google Driveへの保存を各セルの案内に従って設定してください。Windowsの `.venv` は転用しません。
 
 ランタイム上の処理やモデルが実行中の場合、取得処理は更新を拒否します。保存状態を確認し、ノートブックの終了セルで停止してから更新してください。
+
+## 追加の文字起こし・音声前処理
+
+WhisperXに加え、Haas-ja v1.0による日本語文字起こしを実験的に選べます。NVIDIA GPUと専用環境が必要です。WindowsではWSL2のUbuntu 24.04を用意し、`scripts\setup_haas_ja.bat` を実行します。Linuxでは `bash scripts/setup_haas_ja.sh` を使います。話者分離にはNemotron 3を使用し、時刻は発話区間のおおよその位置です。
+
+RE-USE音声前処理は `scripts\setup_reuse.bat`（Linuxは `bash scripts/setup_reuse.sh`）で専用環境を準備してから選びます。NVIDIA GPUを使用し、重なった声の一部を抑える場合があります。元の音声と比較して確認してください。準備が足りないときは画面に理由を表示します。
+
+モデルの取得にはインターネット接続が必要です。これらの追加環境は配置先ごとに準備し、別のフォルダーの仮想環境をコピーしないでください。

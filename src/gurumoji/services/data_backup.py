@@ -5,7 +5,8 @@ Vaults and their ledgers. A backup copies, at one moment, only what cannot be
 recreated: the database (through SQLite's backup API), the fixed analysis
 results, the Vaults, their ledgers and history, the finishing workbench and
 the custom vocabulary. The original media, and the training clips cut from it,
-are optional because of their size.
+are optional because of their size. Knowledge Builder runs independently and
+must be backed up separately while its processes are stopped.
 
 Left out on purpose: thumbnails and training exports (regenerated), the trash
 and upload staging, migration backups, ``runtime/output`` (rewritten from the
@@ -37,6 +38,7 @@ EXCLUDED_NOTE = [
     "analysis-derived.sqlite3（派生解析行。失われたら再計算）",
     "kushinada_training の書き出し（DBから再生成される）",
     "trash・アップロードの一時領域・移行時の backup-*",
+    "knowledge_builder（別プロセスを停止し、データフォルダーと一緒に手動バックアップ）",
     "runtime/output（次の編集保存でDBから書き直される）",
     "config/tokens.json（秘密情報。復元後に設定し直す）",
 ]

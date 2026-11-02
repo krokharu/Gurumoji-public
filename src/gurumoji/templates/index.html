@@ -2,13 +2,16 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
+  <meta name="gurumoji-icon-base" content="{{ url_for('static', filename='icons') }}/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ app_name }}</title>
+  <script src="{{ url_for('static', filename='theme-init.js') }}"></script>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='analysis-orchestration.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='analysis-history.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='ai-effort.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='stitch-theme.css') }}">
 </head>
 <body class="booting">
   <div id="boot-splash" class="boot-splash" role="status" aria-label="Gurumojiを起動しています">
@@ -37,6 +40,10 @@
       #/data/<id>    1件の作業画面（発話の編集 / 会話・話者 / 議事録・アウトライン / ファイル・管理）
       #/analysis/<id> 分析・可視化
       #/speakers     話者管理
+      #/presets      プリセットデータ
+      #/folders      フォルダー管理
+      #/catalog      タグ・グループ管理
+      #/internal     内部データ（準備中）
   -->
   <header class="app-bar">
     <div class="app-bar-inner">
@@ -46,10 +53,14 @@
         <small class="app-brand-version">v{{ app_version }}</small>
       </a>
       <nav class="app-nav" aria-label="画面の切り替え" role="tablist">
-        <button id="show-new-button" class="view-tab active" type="button" role="tab" aria-controls="create-view" aria-selected="true">動画・音声を文字起こし</button>
-        <button id="show-library-button" class="view-tab" type="button" role="tab" aria-controls="processed-data-hub library-card analysis-card" aria-selected="false">文字起こし結果</button>
-        <button id="show-analysis-button" class="view-tab" type="button" role="tab" aria-controls="analysis-card" aria-selected="false">分析・可視化</button>
-        <button id="show-speakers-button" class="view-tab" type="button" role="tab" aria-controls="speaker-registry-card" aria-selected="false">話者管理</button>
+        <button id="show-new-button" class="view-tab active" type="button" role="tab" aria-controls="create-view" aria-selected="true"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/01-transcription.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/01-transcription.svg') }}" alt=""></span>新規作成</button>
+        <button id="show-library-button" class="view-tab" type="button" role="tab" aria-controls="processed-data-hub library-card analysis-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/109-project.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/109-project.svg') }}" alt=""></span>データ</button>
+        <button id="show-analysis-button" class="view-tab" type="button" role="tab" aria-controls="analysis-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/21-statistics.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/21-statistics.svg') }}" alt=""></span>分析</button>
+        <button id="show-speakers-button" class="view-tab" type="button" role="tab" aria-controls="speaker-registry-card" aria-selected="false"><span class="gm-icon gm-icon-adaptive" aria-hidden="true"><img class="gm-icon-light" src="{{ url_for('static', filename='icons/light/055-speaker-profile.svg') }}" alt=""><img class="gm-icon-dark" src="{{ url_for('static', filename='icons/dark/055-speaker-profile.svg') }}" alt=""></span>話者データ</button>
+        <button id="prior-presets-button" class="view-tab" type="button" role="tab" aria-controls="preset-data-card" aria-selected="false" data-prior-view="presets">プリセットデータ</button>
+        <button id="prior-folders-button" class="view-tab" type="button" role="tab" aria-controls="library-group-dialog" aria-selected="false" data-prior-view="folders">フォルダー管理</button>
+        <button id="prior-catalog-button" class="view-tab" type="button" role="tab" aria-controls="data-catalog-dialog" aria-selected="false" data-prior-view="catalog">タグ・グループ管理</button>
+        <button id="prior-internal-button" class="view-tab" type="button" role="tab" aria-controls="internal-data-card" aria-selected="false" data-prior-view="internal">内部データ</button>
       </nav>
       <div class="app-bar-tools">
         <button id="job-chip" class="job-chip" type="button" hidden>
@@ -74,6 +85,8 @@
           <span class="connection-label">接続と処理装置</span>
           <span class="connection-devices" aria-label="CPUとGPUの利用状態"><b data-device-dot="cpu" class="checking">CPU</b><b data-device-dot="gpu" class="checking">GPU</b></span>
         </button>
+        <span id="app-clock" class="app-clock" aria-hidden="true"></span>
+        <button id="open-general-settings" class="app-gear" type="button" aria-haspopup="dialog" aria-controls="general-settings-dialog" aria-label="通常設定"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/30-settings.svg') }}" alt="" aria-hidden="true"></button>
       </div>
     </div>
   </header>
@@ -82,6 +95,39 @@
     <nav id="processed-data-hub" class="processed-data-hub" aria-label="処理済みデータの切り替え" role="tablist" hidden>
       <button id="show-library-list-button" class="processed-data-tab active" type="button" role="tab" aria-controls="library-card" aria-selected="true">データ一覧</button>
       <button id="show-library-analysis-button" class="processed-data-tab" type="button" role="tab" aria-controls="analysis-card" aria-selected="false">分析・可視化</button>
+      <div class="processed-data-tools" role="group" aria-label="データの並べ替えと検索">
+        <label class="processed-data-tool">
+          <span>並べ替え</span>
+          <select id="library-sort">
+            <option value="updated_desc">更新が新しい順</option>
+            <option value="created_desc">作成が新しい順</option>
+            <option value="recorded_desc">収録日が新しい順</option>
+            <option value="media_duration_desc">メディアが長い順</option>
+            <option value="name">名前順</option>
+            <option value="group">フォルダー順</option>
+            <option value="speaker">話者別</option>
+            <option value="emotion">感情別</option>
+            <option value="keyword">キーワード一致数順</option>
+          </select>
+        </label>
+        <label class="processed-data-tool">
+          <span>フォルダー</span>
+          <select id="library-group"><option value="">すべてのフォルダー</option><option value="__ungrouped__">未分類</option></select>
+        </label>
+        <label class="processed-data-tool">
+          <span>分析グループ</span>
+          <select id="library-data-group"><option value="">すべての分析グループ</option></select>
+        </label>
+        <label class="processed-data-tool">
+          <span>タグ</span>
+          <select id="library-tag"><option value="">すべてのタグ</option></select>
+        </label>
+        <label class="processed-data-tool processed-data-keyword">
+          <span>キーワード</span>
+          <input id="library-keyword" type="search" placeholder="本文・ファイル名を検索">
+        </label>
+        <strong id="library-filter-badge" class="processed-data-badge">条件なし</strong>
+      </div>
     </nav>
     <!-- ===== 新規作成：ファイル → 設定 → 開始 ===== -->
 {% include "views/create.html" %}
@@ -97,6 +143,8 @@
 
     <!-- ===== 話者管理 ===== -->
 {% include "views/speakers.html" %}
+    <!-- 事前データの各機能は独立した画面で管理する。 -->
+{% include "views/prior_data.html" %}
   </main>
 
   <dialog id="add-record-dialog" class="app-dialog" aria-labelledby="add-record-dialog-title">
@@ -141,6 +189,8 @@
     </form>
   </dialog>
 
+  {% include 'dialogs/general_settings.html' %}
+
   <dialog id="connection-dialog" class="app-dialog connection-dialog" aria-labelledby="connection-dialog-title">
     <form method="dialog">
       <div class="app-dialog-header">
@@ -171,13 +221,15 @@
           <small>使用モデル：<code data-provider-model="lmstudio">—</code></small>
           <button class="secondary-button compact-button" type="button" data-model-provider="lmstudio">モデルを変更</button>
         </div>
+        {% if obsidian_enabled %}
         <div class="connection-row">
-          <span class="status-pill loading" data-obsidian-watcher-pill>Obsidian監視</span>
-          <small data-obsidian-watcher-detail>操作ノートのチェックとテーマ同期を読む常駐処理</small>
+          <span class="status-pill loading" data-obsidian-watcher-pill>Obsidian監視 確認中</span>
+          <small data-obsidian-watcher-detail>監視の実行状態を確認しています。</small>
         </div>
+        {% endif %}
         <div class="connection-row">
           <span class="status-pill ready">バックアップ</span>
-          <small><label><input id="backup-include-media" type="checkbox"> 元の音声・動画も含める</label><br><span id="backup-message">DB・分析結果・Vaultを同じ時点で runtime/backups に保存します。APIキーと出力ファイルは含めません。</span></small>
+          <small><label><input id="backup-include-media" type="checkbox"> 元の音声・動画も含める</label><br><span id="backup-message">DB・分析結果・Vaultを同じ時点で runtime/backups に保存します。APIキー・出力ファイル・Knowledge Builderは含めません。</span></small>
           <button id="create-backup-button" class="secondary-button compact-button" type="button">バックアップを作成</button>
         </div>
       </div>
@@ -203,37 +255,23 @@
 
   <script src="{{ url_for('static', filename='analysis-content.js') }}" defer></script>
   <script src="{{ url_for('static', filename='analysis-storage.js') }}" defer></script>
+  {% if obsidian_enabled %}
   <div id="obsidian-finishing-activity" class="ai-finishing-activity obsidian-finishing-activity" role="status" hidden>
     <div class="finishing-orbit" aria-hidden="true"></div>
     <div><strong>ObsidianのAI仕上げ</strong><p data-obsidian-detail></p></div>
   </div>
+  {% endif %}
   <script src="{{ url_for('static', filename='analysis-visualizations.js') }}" defer></script>
   <script src="{{ url_for('static', filename='analysis-method-view.js') }}" defer></script>
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
   <script src="{{ url_for('static', filename='data-catalog.js') }}" defer></script>
-  {% include 'dialogs/data_catalog.html' %}
   <script src="{{ url_for('static', filename='notation.js') }}" defer></script>
   <script src="{{ url_for('static', filename='interview-comparison.js') }}" defer></script>
   <script src="{{ url_for('static', filename='ai-effort.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='create-dashboard.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='general-settings.js') }}" defer></script>
 
-  <dialog id="library-group-dialog" class="app-dialog library-group-dialog" aria-labelledby="library-group-dialog-title">
-    <form id="library-group-create-form" method="dialog">
-      <div class="app-dialog-header">
-        <h2 id="library-group-dialog-title">フォルダー管理</h2>
-        <p>処理済みデータを目的・プロジェクトごとに分類します。</p>
-      </div>
-      <div id="library-group-message" class="alert" hidden></div>
-      <label class="field">
-        <span>フォルダー名</span>
-        <input id="library-group-name" type="text" placeholder="例：2026年春 評価実験" required>
-      </label>
-      <div class="app-dialog-actions">
-        <button id="close-library-group-dialog" class="secondary-button" type="button">閉じる</button>
-        <button class="primary-button small" type="submit">フォルダーを作成</button>
-      </div>
-      <div id="library-group-list" class="library-group-list"></div>
-    </form>
-  </dialog>
+
 
   <dialog id="analysis-run-dialog" class="app-dialog analysis-run-dialog" aria-labelledby="analysis-run-dialog-title">
     <form id="analysis-run-form" method="dialog">

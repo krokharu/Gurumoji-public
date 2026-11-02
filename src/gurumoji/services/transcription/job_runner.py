@@ -16,6 +16,7 @@ from ...ai_effort import cleanup_enabled
 from ...ai_finishing import FINISHING_VERSION, RECOMMENDED_FINISHING_VERSION
 from ..ai.transcript_finishing import run_full_cleanup
 from ..notation import NOTATION_VERSION
+from .prior_context import recognition_hint_terms
 
 def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any]) -> None:
     TranscriptionReporter = dependencies["TranscriptionReporter"]
@@ -136,20 +137,27 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
         check_cancelled()
         set_stage("environment", "処理環境の確認", 100)
         progress(8)
-        if options.transcription_backend == "qwen3_nemotron":
+        if options.transcription_backend in ("qwen3_nemotron", "haas_ja"):
+            haas_selected = options.transcription_backend == "haas_ja"
+            asr_label = "Haas-ja" if haas_selected else "Qwen3-ASR / ForcedAligner"
             import numpy as np
             import torch
             import wave
             import whisperx
 
+            from .haas_stack import run_haas_stack
             from .qwen_stack import run_qwen_stack
 
             device = options.device
             diarization_device = options.diarization_device
             if (device == "cuda" or diarization_device == "cuda") and not torch.cuda.is_available():
                 raise RuntimeError("CUDA is unavailable. Select CPU or install a CUDA-enabled PyTorch runtime.")
-            set_stage("transcription", "Qwen3-ASR / ForcedAligner", 10)
-            status("Running Qwen3-ASR with Qwen3 ForcedAligner.")
+            set_stage("transcription", asr_label, 10)
+            status(
+                "Running Haas-ja (experimental, official release)."
+                if haas_selected
+                else "Running Qwen3-ASR with Qwen3 ForcedAligner."
+            )
             qwen_audio = whisperx.load_audio(str(processing_input_path))
             qwen_audio_path = internal_work_dir / "qwen-asr-input.wav"
             pcm_audio = (np.clip(np.asarray(qwen_audio), -1.0, 1.0) * 32767).astype("<i2")
@@ -169,7 +177,7 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
             else:
                 qwen_diarization_path = qwen_audio_path
 
-            qwen_result = run_qwen_stack(
+            qwen_result = (run_haas_stack if haas_selected else run_qwen_stack)(
                 asr_audio_path=qwen_audio_path,
                 diarization_audio_path=qwen_diarization_path,
                 work_dir=internal_work_dir,
@@ -182,16 +190,16 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
             language_code = options.language or qwen_result.get("language")
             result = {"language": language_code, "segments": qwen_result["segments"]}
             audio = None
-            set_stage("transcription", "Qwen3-ASR / ForcedAligner", 100)
+            set_stage("transcription", asr_label, 100)
             progress(64)
-            set_stage("alignment", "Qwen3 ForcedAligner", 100)
+            set_stage("alignment", "Segment timestamps" if haas_selected else "Qwen3 ForcedAligner", 100)
             progress(72)
             set_stage("diarization", "Nemotron 3 Diarization", 100)
             progress(80)
             set_stage("speaker_assignment", "Speaker assignment", 100)
             segments = ensure_segment_ids(job.id, make_display_segments(result["segments"]))
             if not segments:
-                raise RuntimeError("Qwen3-ASR / ForcedAligner returned no transcript segments.")
+                raise RuntimeError(f"{asr_label} returned no transcript segments.")
         else:
             try:
                 import torch
@@ -230,11 +238,14 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
                 status("文字起こしは CPU を使用します。")
 
             backend = "OpenAI Whisper" if use_openai_whisper else "WhisperX (faster-whisper)"
-            vocabulary_prompt = whisper_vocabulary_prompt(options.custom_vocabulary)
+            hint_terms = recognition_hint_terms(
+                options.custom_vocabulary, options.prior_speakers, options.prior_outline
+            )
+            vocabulary_prompt = whisper_vocabulary_prompt(hint_terms)
             if vocabulary_prompt:
                 status(
-                    f"単語登録をWhisperの認識ヒントに使用します"
-                    f"（{len(options.custom_vocabulary)}語登録・先頭から順に使用）。"
+                    f"単語登録・事前話者情報・事前アウトラインをWhisperの認識ヒントに使用します"
+                    f"（{len(hint_terms)}語・先頭から順に使用）。"
                 )
 
             def decoding_settings_text(
@@ -814,6 +825,7 @@ def run_transcription_job(job: Any, options: Any, dependencies: Mapping[str, Any
                     record_ai_usage,
                     status,
                     speaker_identity_diagnostics.update,
+                    known_speakers=options.prior_speakers,
                     **ai_base_kwargs,
                 )
                 segments, speaker_names, speaker_repair_summary = apply_speaker_identity_repairs(

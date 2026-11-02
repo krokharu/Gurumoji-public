@@ -4,14 +4,24 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
-QWEN_PYTHON = REPOSITORY_ROOT / ".venv-qwen" / "Scripts" / "python.exe"
-NEMOTRON_PYTHON = REPOSITORY_ROOT / ".venv-nemotron" / "Scripts" / "python.exe"
+
+
+def venv_python(name: str) -> Path:
+    root = REPOSITORY_ROOT / name
+    if sys.platform == "win32":
+        return root / "Scripts" / "python.exe"
+    return root / "bin" / "python"
+
+
+QWEN_PYTHON = venv_python(".venv-qwen")
+NEMOTRON_PYTHON = venv_python(".venv-nemotron")
 QWEN_WORKER = REPOSITORY_ROOT / "scripts" / "qwen_stack_worker.py"
 NEMOTRON_WORKER = REPOSITORY_ROOT / "scripts" / "nemotron_diarization_worker.py"
 QWEN_READY = REPOSITORY_ROOT / ".venv-qwen" / ".qwen-stack-ready"
@@ -52,8 +62,6 @@ def run_qwen_stack(
 
     asr_request_path = work_dir / "qwen-asr-request.json"
     asr_result_path = work_dir / "qwen-asr-result.json"
-    diarization_request_path = work_dir / "nemotron-request.json"
-    result_path = work_dir / "qwen-stack-result.json"
 
     def write_request(path: Path, payload: dict[str, Any]) -> None:
         path.write_text(
@@ -89,18 +97,46 @@ def run_qwen_stack(
     if not isinstance(asr_segments, list) or not asr_segments:
         raise RuntimeError("Qwen3 / ForcedAligner が有効な発話区間を返しませんでした。")
 
-    write_request(
-        diarization_request_path,
-        {
-            "diarization_audio": str(diarization_audio_path.resolve()),
-            "diarization_device": diarization_device,
-            "language": asr_payload.get("language"),
-            "segments": asr_segments,
-            "result_path": str(result_path.resolve()),
-        },
+    return assign_speakers_with_nemotron(
+        segments=asr_segments,
+        language=asr_payload.get("language"),
+        diarization_audio_path=diarization_audio_path,
+        work_dir=work_dir,
+        diarization_device=diarization_device,
+        status=status,
+        check_cancelled=check_cancelled,
+    )
+
+
+def assign_speakers_with_nemotron(
+    *,
+    segments: list[dict[str, Any]],
+    language: str | None,
+    diarization_audio_path: Path,
+    work_dir: Path,
+    diarization_device: str,
+    status: Callable[[str], None],
+    check_cancelled: Callable[[], None],
+    worker_runner: Callable[..., None] | None = None,
+) -> dict[str, Any]:
+    """Attach Nemotron 3 speaker labels to timestamped ASR segments."""
+    diarization_request_path = work_dir / "nemotron-request.json"
+    result_path = work_dir / "qwen-stack-result.json"
+    diarization_request_path.write_text(
+        json.dumps(
+            {
+                "diarization_audio": str(diarization_audio_path.resolve()),
+                "diarization_device": diarization_device,
+                "language": language,
+                "segments": segments,
+                "result_path": str(result_path.resolve()),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
     )
     result_path.unlink(missing_ok=True)
-    run_worker(
+    (worker_runner or run_worker)(
         NEMOTRON_PYTHON,
         NEMOTRON_WORKER,
         diarization_request_path,
@@ -113,9 +149,9 @@ def run_qwen_stack(
         payload = json.loads(result_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise RuntimeError("Nemotron 3 worker が有効な結果を返しませんでした。") from exc
-    segments = payload.get("segments") if isinstance(payload, dict) else None
-    if not isinstance(segments, list) or not segments:
-        raise RuntimeError("Qwen3 / Nemotron 3 worker が有効な結果を返しませんでした。")
+    result_segments = payload.get("segments") if isinstance(payload, dict) else None
+    if not isinstance(result_segments, list) or not result_segments:
+        raise RuntimeError("Nemotron 3 worker が有効な結果を返しませんでした。")
     return payload
 
 
@@ -127,13 +163,17 @@ def run_worker(
     label: str,
     status: Callable[[str], None],
     check_cancelled: Callable[[], None],
+    *,
+    command: list[str] | None = None,
+    cancel_worker: Callable[[], None] | None = None,
 ) -> None:
     with log_path.open("w", encoding="utf-8") as log_file:
         process = subprocess.Popen(
-            [str(python), str(worker), str(request)],
+            command if command is not None else [str(python), str(worker), str(request)],
             cwd=str(REPOSITORY_ROOT),
             stdout=log_file,
             stderr=subprocess.STDOUT,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         last_status = time.monotonic()
         try:
@@ -144,6 +184,8 @@ def run_worker(
                     last_status = time.monotonic()
                 time.sleep(0.25)
         except BaseException:
+            if cancel_worker is not None:
+                cancel_worker()
             if process.poll() is None:
                 process.terminate()
                 try:

@@ -60,6 +60,7 @@ const customVocabulary = document.querySelector('#custom-vocabulary');
 const customVocabularyStatus = document.querySelector('#custom-vocabulary-status');
 const qwenBackendNote = document.querySelector('#qwen-backend-note');
 const qwenVocabularyNote = document.querySelector('#qwen-vocabulary-note');
+const haasBackendNote = document.querySelector('#haas-backend-note');
 const setupReadyState = document.querySelector('#setup-ready-state');
 const setupSummary = document.querySelector('#setup-summary');
 const createView = document.querySelector('#create-view');
@@ -93,7 +94,8 @@ const showLibraryListButton = document.querySelector('#show-library-list-button'
 const showLibraryAnalysisButton = document.querySelector('#show-library-analysis-button');
 const showNewButton = document.querySelector('#show-new-button');
 const showSpeakersButton = document.querySelector('#show-speakers-button');
-const libraryGroupDialog = document.querySelector('#library-group-dialog');
+const priorDataPanels = [...document.querySelectorAll('[data-prior-panel]')];
+const priorDataButtons = [...document.querySelectorAll('[data-prior-view]')];
 const libraryGroupList = document.querySelector('#library-group-list');
 const libraryGroupMessage = document.querySelector('#library-group-message');
 const segmentEditor = document.querySelector('#segment-editor');
@@ -812,7 +814,15 @@ function applyConversationMode(mode = selectedConversationMode()) {
 }
 
 function syncTranscriptionBackend() {
-  const qwenSelected = transcriptionBackend?.value === 'qwen3_nemotron';
+  const haasSelected = transcriptionBackend?.value === 'haas_ja';
+  const asrDevice = document.querySelector('#transcription-device');
+  const cpuOption = asrDevice?.querySelector('option[value="cpu"]');
+  if (cpuOption) cpuOption.disabled = haasSelected;
+  if (haasSelected && asrDevice?.querySelector('option[value="cuda"]:not(:disabled)')) {
+    asrDevice.value = 'cuda';
+  }
+  // Both isolated stacks diarize with Nemotron 3 and skip the WhisperX controls.
+  const qwenSelected = transcriptionBackend?.value === 'qwen3_nemotron' || haasSelected;
   if (qwenSelected && isSpeakerCountFixed()) setSpeakerCountFixed(false);
   if (modelName) modelName.disabled = qwenSelected;
   if (triplePass) {
@@ -833,50 +843,100 @@ function syncTranscriptionBackend() {
   [minSpeakersInput, maxSpeakersInput].forEach(input => {
     if (input) input.disabled = qwenSelected;
   });
-  if (qwenBackendNote) qwenBackendNote.hidden = !qwenSelected;
+  if (qwenBackendNote) qwenBackendNote.hidden = transcriptionBackend?.value !== 'qwen3_nemotron';
+  if (haasBackendNote) haasBackendNote.hidden = !haasSelected;
+  if (haasSelected && languageSelect && languageSelect.value !== 'ja') languageSelect.value = 'ja';
   if (qwenVocabularyNote) qwenVocabularyNote.hidden = !qwenSelected;
+}
+
+function transcriptFinishingPlan() {
+  // 実行側のモード正規化に合わせ、保存中の選択値と今回の処理を分ける。
+  const mode = document.querySelector('input[name="transcript_finishing_mode"]:checked')?.value || 'custom';
+  const enabled = mode !== 'off' && (document.querySelector('#ai-provider')?.value || 'none') !== 'none';
+  const advanced = mode === 'advanced';
+  const recommended = mode === 'recommended';
+  const deferred = mode !== 'off' && !advanced && Boolean(document.querySelector('#finish-in-obsidian')?.checked);
+  const values = typeof readAiEfforts === 'function' ? readAiEfforts() : {
+    cleanup: document.querySelector('[name="ai_effort_cleanup"]')?.value || 'medium',
+    notation: document.querySelector('[name="ai_effort_notation"]')?.value || 'off'
+  };
+  const fullCleanup = enabled && (advanced || (!recommended && Boolean(document.querySelector('#clean-transcript')?.checked || document.querySelector('#jev-compare')?.checked)));
+  const recommendedCleanup = enabled && recommended && !deferred && values.cleanup !== 'off'
+    && Boolean(typeof tokenConfigSnapshot !== 'undefined' && tokenConfigSnapshot.typesafe);
+  const cleanup = !deferred && values.cleanup !== 'off' && (fullCleanup || recommendedCleanup);
+  const contextOutline = cleanup && (fullCleanup || ['high', 'ultra'].includes(values.cleanup));
+  const outlineOutput = enabled && !deferred && !recommended && Boolean(document.querySelector('#create-outline')?.checked);
+  const names = enabled && (advanced || Boolean(document.querySelector('#detect-names')?.checked));
+  const notation = enabled && !deferred && values.notation !== 'off';
+  const compare = cleanup && !recommended && Boolean(document.querySelector('#jev-compare')?.checked);
+  return {mode, advanced, deferred, fullCleanup, recommendedCleanup, contextOutline, outlineOutput, notation, compare,
+    requested: {cleanup: Boolean(cleanup), outline: Boolean(contextOutline || outlineOutput), name_extract: Boolean(names), name_verify: Boolean(names)},
+    configurable: {cleanup: enabled && Boolean(recommended || deferred || fullCleanup), outline: Boolean(contextOutline || outlineOutput), name_extract: Boolean(names), name_verify: Boolean(names)}};
 }
 
 function enabledTextDestinations() {
   const provider = aiProvider?.value || 'none';
   const mode = selectedTranscriptFinishingMode();
   if (provider === 'none' || mode === 'off') return [];
-  const deferred = mode === 'recommended' && Boolean(finishInObsidian?.checked);
-  const recommended = mode === 'recommended' && !deferred
-    && Boolean(tokenConfigSnapshot.typesafe)
-    && (document.querySelector('[name="ai_effort_cleanup"]')?.value || 'medium') !== 'off';
+  const plan = transcriptFinishingPlan();
   const destinations = [];
-  if (mode === 'advanced' || recommended || detectNames?.checked || createOutline?.checked) {
+  if (Object.values(plan.requested).some(Boolean) || plan.notation) {
     destinations.push({provider, label: selectedOptionText(aiProvider), model: tokenConfigSnapshot[`${provider}_model`] || 'モデル未設定'});
   }
-  if (recommended || (mode === 'advanced' && jevCompare?.checked)) {
+  if (plan.recommendedCleanup || plan.compare) {
     destinations.push({provider: 'typesafe', label: 'TypeSafe Jev（外部サービス）', model: tokenConfigSnapshot.typesafe_model || 'jev-latest'});
   }
   return destinations;
 }
 
+// Advisory notes (not blockers) are shown until a job that displayed them has
+// been accepted, so each one appears only the first time its feature is used.
+const seenNoticeStorageKey = 'gurumoji.seenCreateNotices';
+function readSeenNotices() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(seenNoticeStorageKey) || '[]');
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch (_) { return new Set(); }
+}
+function rememberSeenNotices(notices) {
+  if (!notices || !notices.length) return;
+  const seen = readSeenNotices();
+  notices.forEach(notice => seen.add(notice));
+  try { localStorage.setItem(seenNoticeStorageKey, JSON.stringify([...seen])); } catch (_) { /* shown again next time */ }
+}
+
 function createReadiness() {
   const blockers = [];
   const notes = [];
+  const acknowledgementNotes = new Set();
   let requiresModelAcknowledgement = false;
   if (configLoadState !== 'loaded') blockers.push(configLoadState === 'error' ? '設定を確認できません。接続と処理装置から再確認してください' : '実行環境と設定を確認中です');
   if (configLoadState === 'loaded') {
     const backend = transcriptionBackend?.value || 'whisperx';
+    if (audioPreprocess?.value === 'reuse') {
+      const audioReadiness = tokenConfigSnapshot.transcription_readiness?.audio_preprocess?.reuse;
+      if (!audioReadiness) blockers.push('RE-USEの準備状態を確認できません。設定を再確認してください');
+      else {
+        blockers.push(...(audioReadiness.blockers || []));
+        (audioReadiness.notes || []).forEach(note => notes.push(note));
+      }
+    }
     if (backend === 'whisperx' && !tokenConfigSnapshot.huggingface) blockers.push('話者分離に必要なHugging Faceトークンが未設定です');
     const readiness = tokenConfigSnapshot.transcription_readiness?.[backend];
     if (!readiness) blockers.push('方式・モデルの準備状態を取得できません。設定を再確認してください');
     else {
       blockers.push(...(readiness.blockers || []));
-      notes.push(...(readiness.notes || []));
-      requiresModelAcknowledgement = Boolean(readiness.notes?.length);
+      (readiness.notes || []).forEach(note => { notes.push(note); acknowledgementNotes.add(note); });
       const device = document.querySelector('#transcription-device')?.value || 'cpu';
       const model = readiness.models?.[device]?.[modelName?.value];
       if (model) {
-        notes.push(`認識モデル: ${model.message}`);
-        if (model.status !== 'cached') requiresModelAcknowledgement = true;
+        const note = `認識モデル: ${model.message}`;
+        notes.push(note);
+        if (model.status !== 'cached') acknowledgementNotes.add(note);
       } else if (backend === 'whisperx') {
-        notes.push('選択した認識モデルの取得状況は未確認です');
-        requiresModelAcknowledgement = true;
+        const note = '選択した認識モデルの取得状況は未確認です';
+        notes.push(note);
+        acknowledgementNotes.add(note);
       }
     }
     enabledTextDestinations().forEach(destination => {
@@ -890,8 +950,11 @@ function createReadiness() {
     blockers.push(...effortReadiness.blockers);
     notes.push(...effortReadiness.notes);
   }
+  const seen = readSeenNotices();
+  const pendingNotes = [...new Set(notes)].filter(note => !seen.has(note));
+  requiresModelAcknowledgement = pendingNotes.some(note => acknowledgementNotes.has(note));
   const acknowledged = Boolean(document.querySelector('#model-readiness-ack')?.checked);
-  return {ready: hasSelectedSource() && !blockers.length && (!requiresModelAcknowledgement || acknowledged), requiresModelAcknowledgement, acknowledged, blockers: [...new Set(blockers)], notes: [...new Set(notes)]};
+  return {ready: hasSelectedSource() && !blockers.length && (!requiresModelAcknowledgement || acknowledged), requiresModelAcknowledgement, acknowledged, blockers: [...new Set(blockers)], notes: pendingNotes};
 }
 
 function updateCreateSummary() {
@@ -916,8 +979,11 @@ function updateCreateSummary() {
 
   const modePreset = conversationModePresets[selectedConversationMode()];
   const mode = modePreset ? modePreset.label : '会議モード';
-  const qwenSelected = transcriptionBackend?.value === 'qwen3_nemotron';
-  const model = qwenSelected
+  const haasSelected = transcriptionBackend?.value === 'haas_ja';
+  const qwenSelected = transcriptionBackend?.value === 'qwen3_nemotron' || haasSelected;
+  const model = haasSelected
+    ? 'Haas-ja v1.0（公式・実験的） + Nemotron 3'
+    : qwenSelected
     ? 'Qwen3-ASR + ForcedAligner + Nemotron 3'
     : (selectedOptionText(modelName).split(' \u2014 ')[0] || '\u81ea\u52d5');
   const language = selectedOptionText(languageSelect) || '自動判定';
@@ -934,15 +1000,9 @@ function updateCreateSummary() {
   const finishExtras = [];
   if (triplePass && triplePass.checked) finishExtras.push('詳細処理');
   const providerLabel = aiProvider && aiProvider.value !== 'none' ? selectedOptionText(aiProvider) : '';
-  const finishingMode = selectedTranscriptFinishingMode();
-  const finishInVault = Boolean(finishInObsidian && finishInObsidian.checked && finishingMode === 'recommended');
-  const cleanupLevel = document.querySelector('[name="ai_effort_cleanup"]')?.value || 'medium';
-  const recommendedCleanup = finishingMode === 'recommended' && !finishInVault
-    && Boolean(tokenConfigSnapshot.typesafe) && cleanupLevel !== 'off';
-  const otherAiWork = Boolean(detectNames && detectNames.checked);
-  const notationWork = !finishInVault && (document.querySelector('[name="ai_effort_notation"]')?.value || 'off') !== 'off';
-  const finishNow = Boolean(providerLabel) && finishingMode !== 'off'
-    && (finishingMode === 'advanced' || recommendedCleanup || otherAiWork || notationWork);
+  const finishingPlan = transcriptFinishingPlan();
+  const finishInVault = finishingPlan.deferred;
+  const finishNow = Object.values(finishingPlan.requested).some(Boolean) || finishingPlan.notation;
   const configuredModel = finishNow ? String(tokenConfigSnapshot[`${aiProvider.value}_model`] || '').trim() : '';
   const finishingState = finishNow ? 'する' : 'しない';
   const finishingModel = finishNow
@@ -950,11 +1010,11 @@ function updateCreateSummary() {
     : '使用モデルなし';
   const finishingDetail = finishInVault
     ? `${finishNow ? '話者を確認 / ' : ''}Obsidianに保存してあとで整える`
-    : (finishNow ? (finishingMode === 'advanced' ? '全文を整える' : (recommendedCleanup ? '必要な箇所を整える' : '話者を確認する')) : '認識結果をそのまま残す');
+    : (finishNow ? [finishingPlan.requested.cleanup ? (finishingPlan.recommendedCleanup ? '必要な箇所を整える' : '全文を整える') : '', finishingPlan.requested.name_extract ? '話者を確認する' : '', finishingPlan.outlineOutput ? 'アウトラインを出力' : '', finishingPlan.notation ? '表記ゆれを統一' : ''].filter(Boolean).join(' / ') : '認識結果をそのまま残す');
   const finishingLabel = `${finishingState} / ${finishingModel}`;
   finishExtras.push(`AI仕上げ: ${finishingState}`);
   if (finishInVault) finishExtras.push('Obsidianに保存してあとで整える');
-  if (jevCompare && jevCompare.checked) finishExtras.push('Jev修正要否比較');
+  if (finishingPlan.compare) finishExtras.push('Jev修正要否比較');
   const emotionEnabled = Boolean(emotionAnalysis && emotionAnalysis.checked);
   if (emotionEnabled) finishExtras.push('感情分析');
   const emotionLabel = emotionEnabled ? (selectedOptionText(emotionModel).split('（')[0] || '実行する') : '実行しない';
@@ -1098,7 +1158,13 @@ function hasUnsavedAnalysisChanges() {
 
 // ---- Screens and routes (UX-01). Each screen owns one hash so reloads, the
 // browser's back button and bookmarks return to the same place. ----
-const viewRouteHashes = {new: '#/new', library: '#/data', analysis: '#/analysis', speakers: '#/speakers'};
+const viewRouteHashes = {new: '#/new', library: '#/data', analysis: '#/analysis', speakers: '#/speakers',
+  presets: '#/presets', folders: '#/folders', catalog: '#/catalog', internal: '#/internal'};
+
+
+// 分析は公開準備中のため、実行データを読み込まない。
+const ANALYSIS_COMING_SOON = true;
+if (analysisCard) analysisCard.classList.toggle('is-coming-soon', ANALYSIS_COMING_SOON);
 
 function routeHash(view, id = '') {
   const encoded = id ? encodeURIComponent(String(id)) : '';
@@ -1116,7 +1182,7 @@ function parseRouteHash(hash) {
   if (head === 'data') return {view: 'library', itemId: ''};
   if (head === 'analysis') return {view: 'analysis', itemId: id};
   if (head === 'speakers') return {view: 'speakers', itemId: ''};
-  if (head === 'new') return {view: 'new', itemId: ''};
+  if (Object.hasOwn(viewRouteHashes, head)) return {view: head, itemId: ''};
   return null;
 }
 
@@ -1185,11 +1251,13 @@ function setActiveNavigation(view) {
     [showNewButton, view === 'new'],
     [showLibraryButton, view === 'library' || view === 'item'],
     [showAnalysisButton, view === 'analysis'],
-    [showSpeakersButton, view === 'speakers']
+    [showSpeakersButton, view === 'speakers'],
+    ...priorDataButtons.map(button => [button, view === button.dataset.priorView])
   ].forEach(([button, active]) => {
     if (!button) return;
     button.classList.toggle('active', active);
     button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
   });
   [
     [showLibraryListButton, view === 'library'],
@@ -1202,8 +1270,8 @@ function setActiveNavigation(view) {
 }
 
 function showView(view, {analysisItemId = '', itemId = '', force = false, replace = false} = {}) {
-  const target = ['new', 'library', 'analysis', 'speakers', 'item'].includes(view) ? view : 'new';
-  const requestedAnalysisId = String(analysisItemId || '').trim();
+  const target = view === 'item' || Object.hasOwn(viewRouteHashes, view) ? view : 'new';
+  const requestedAnalysisId = ANALYSIS_COMING_SOON ? '' : String(analysisItemId || '').trim();
   if (target === 'item' && !currentJob) return false;
   const targetItemId = target === 'item' ? String(itemId || currentJob.id) : '';
   if (!force && !confirmLeave({target, itemId: targetItemId, analysisItemId: requestedAnalysisId})) return false;
@@ -1230,16 +1298,19 @@ function showView(view, {analysisItemId = '', itemId = '', force = false, replac
   if (analysisCard) analysisCard.hidden = target !== 'analysis';
   if (speakerRegistryCard) speakerRegistryCard.hidden = target !== 'speakers';
   if (resultCard) resultCard.hidden = target !== 'item';
+  priorDataPanels.forEach(panel => { panel.hidden = panel.dataset.priorPanel !== target; });
   document.body.dataset.view = target;
   setActiveNavigation(target);
   if (closedFixedViewer || closedAnalysisDialog || closedOrchestrationDialog) {
     const navigation = target === 'analysis' ? showAnalysisButton : target === 'speakers' ? showSpeakersButton
-      : target === 'new' ? showNewButton : showLibraryButton;
+      : priorDataButtons.find(button => button.dataset.priorView === target)
+        || (target === 'new' ? showNewButton : showLibraryButton);
     if (navigation?.isConnected && !navigation.closest('[hidden]')) navigation.focus();
   }
-  if (target === 'analysis') loadAnalysisView(requestedAnalysisId, {discardDirty: force || Boolean(switchingAnalysisItem)});
+  if (target === 'analysis' && !ANALYSIS_COMING_SOON) loadAnalysisView(requestedAnalysisId, {discardDirty: force || Boolean(switchingAnalysisItem)});
   if (target === 'library') loadLibrary();
   if (target === 'speakers' && speakerRegistryCard) loadSpeakerRegistry();
+  if (target === 'folders') loadLibraryGroupManager();
   if (target === 'new') {
     renderMobileWizard();
     syncCreateViewState();
@@ -1248,10 +1319,12 @@ function showView(view, {analysisItemId = '', itemId = '', force = false, replac
     ? targetItemId
     : (target === 'analysis' ? (requestedAnalysisId || analysisState.itemId) : '');
   syncRouteHash(routeHash(target, hashId), {replace});
+  document.dispatchEvent(new CustomEvent('gurumoji-view-change', {detail: {view: target}}));
   return true;
 }
 
 function openAnalysisForItem(itemId) {
+  if (ANALYSIS_COMING_SOON) return showView('analysis');
   const targetItemId = String(itemId || '').trim();
   if (!targetItemId) return false;
   const returning = analysisEvidenceReturn?.itemId === targetItemId;
@@ -1328,6 +1401,22 @@ listen(showLibraryListButton, 'click', () => showView('library'));
 listen(showLibraryAnalysisButton, 'click', () => showView('analysis'));
 listen(showNewButton, 'click', () => showView('new'));
 listen(showSpeakersButton, 'click', () => showView('speakers'));
+priorDataButtons.forEach(button => listen(button, 'click', () => showView(button.dataset.priorView)));
+// タブの矢印キー移動はフォーカスだけを変え、Enter・Spaceで画面を選ぶ。
+listen(document.querySelector('.app-nav'), 'keydown', event => {
+  const tabs = [...event.currentTarget.querySelectorAll('[role="tab"]')];
+  const index = tabs.indexOf(event.target);
+  if (index < 0) return;
+  let next;
+  if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+  else if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+  else if (event.key === 'Home') next = 0;
+  else if (event.key === 'End') next = tabs.length - 1;
+  else return;
+  event.preventDefault();
+  tabs[next].focus();
+  tabs[next].scrollIntoView({block: 'nearest', inline: 'nearest'});
+});
 itemTabButtons.forEach(button => listen(button, 'click', () => setItemTab(button.dataset.itemTab)));
 listen(jobChip, 'click', () => {
   if (completedJob) {
@@ -2450,8 +2539,14 @@ listen(inputFile, 'change', handleInputFileSelection);
 });
 listen(fileDropZone, 'drop', event => {
   if (jobRunning || !inputFile) return;
-  const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+  const dropped = [...((event.dataTransfer && event.dataTransfer.files) || [])];
+  const file = dropped[0];
   if (!file) return;
+  // The create dashboard keeps a list of registered files; without it only the first one is used.
+  if (typeof window.registerSourceFiles === 'function') {
+    window.registerSourceFiles(dropped, {append: true});
+    return;
+  }
   try {
     const transfer = new DataTransfer();
     transfer.items.add(file);
@@ -2554,6 +2649,7 @@ function applyMachineProfile(machine, {reset = false} = {}) {
       : '';
   }
   setAlert(document.querySelector('#machine-selection-message'), [...new Set(changes)].join('。'), Boolean(changes.length));
+  syncTranscriptionBackend();
   updateCreateSummary();
 }
 
@@ -2626,7 +2722,7 @@ async function loadConfig() {
       if (data[key]) recognized.push(label);
     });
     const outputDir = document.querySelector('#output-dir');
-    if (outputDir) outputDir.placeholder = `${data.default_output_dir}（実行ごとにサブフォルダーを作成）`;
+    if (outputDir) outputDir.placeholder = data.default_output_dir;
     message.textContent = recognized.length
       ? `利用可能: ${recognized.join(' / ')}。発光している項目を使用できます。`
       : 'トークンを認識できません。tokens.json を確認してください。';
@@ -2965,6 +3061,26 @@ document.querySelectorAll('[data-flow-jump]').forEach(button => {
 document.querySelectorAll('[data-open-panel]').forEach(button => {
   listen(button, 'click', () => openSettingsPanel(button.dataset.openPanel));
 });
+// Create-screen sidebar: the rest of the shortcuts and the open-panel highlight.
+document.querySelectorAll('[data-open-source-settings]').forEach(button => {
+  listen(button, 'click', () => {
+    const details = document.querySelector('#setup-source .source-advanced');
+    if (!details) return;
+    details.open = true;
+    details.scrollIntoView({behavior: scrollBehavior(), block: 'center'});
+  });
+});
+document.querySelectorAll('[data-open-connection]').forEach(button => {
+  listen(button, 'click', () => document.querySelector('#connection-button')?.click());
+});
+const sidebarPanelButtons = [...document.querySelectorAll('.create-sidebar [data-open-panel]')];
+function syncSidebarPanels() {
+  sidebarPanelButtons.forEach(button => {
+    const panel = settingsPanels.find(item => item.dataset.settingsPanel === button.dataset.openPanel);
+    button.classList.toggle('active', Boolean(panel && panel.open));
+  });
+}
+settingsPanels.forEach(panel => listen(panel, 'toggle', syncSidebarPanels));
 [document.querySelector('#transcription-device'), document.querySelector('#diarization-device'), minSpeakersInput, maxSpeakersInput, boostQuietSpeech].forEach(input => {
   listen(input, 'change', updateCreateSummary);
 });
@@ -3301,6 +3417,7 @@ listen(form, 'submit', async event => {
     }
     if (!response.ok) throw new Error(data.error || '処理を開始できませんでした。');
     pollFailureCount = 0;
+    rememberSeenNotices(readiness.notes);
     resumeJob(data);
   } catch (error) {
     if (submissionGeneration !== jobFlowGeneration) return;
@@ -4013,15 +4130,21 @@ listen(document.querySelector('#library-refresh-button'), 'click', () => {
   loadLibrary();
 });
 listen(document.querySelector('#library-create-new-button'), 'click', () => showView('new'));
-listen(document.querySelector('#manage-library-groups-button'), 'click', async () => {
-  setAlert(libraryGroupMessage, '');
-  await loadLibrary();
-  renderLibraryGroupManager();
-  if (libraryGroupDialog && !libraryGroupDialog.open) libraryGroupDialog.showModal();
-});
-listen(document.querySelector('#close-library-group-dialog'), 'click', () => {
-  if (libraryGroupDialog) libraryGroupDialog.close();
-});
+async function loadLibraryGroupManager() {
+  setAlert(libraryGroupMessage, '読み込み中…');
+  try {
+    const response = await apiFetch('/api/library?limit=1&offset=0');
+    const data = await readJsonResponse(response);
+    if (!response.ok) throw new Error(data.error || 'フォルダーを取得できませんでした。');
+    libraryGroups = Array.isArray(data.groups) ? data.groups : [];
+    renderLibraryGroupManager();
+    setAlert(libraryGroupMessage, '');
+  } catch (error) {
+    setAlert(libraryGroupMessage, error.message, true);
+  }
+}
+listen(document.querySelector('#manage-library-groups-button'), 'click', () => showView('folders'));
+listen(document.querySelector('#close-library-group-dialog'), 'click', () => showView('library'));
 listen(document.querySelector('#library-group-create-form'), 'submit', async event => {
   event.preventDefault();
   const input = document.querySelector('#library-group-name');
@@ -4357,6 +4480,8 @@ function applyMeetingObsidianStatus(data) {
 }
 
 async function loadMeetingObsidianStatus(jobId) {
+  // The panel is absent while the Obsidian integration is withdrawn.
+  if (!meetingObsidianStatus) return;
   const generation = ++meetingObsidianStatusGeneration;
   applyMeetingObsidianStatus({status: 'checking', message: 'Obsidianの保存状態を確認しています…'});
   try {
@@ -4679,34 +4804,197 @@ function renderOutline(outline) {
   const content = document.querySelector('#outline-content');
   content.replaceChildren();
   const sections = outline && Array.isArray(outline.sections) ? outline.sections : [];
+  const rerunStatus = document.querySelector('#outline-rerun-status');
+  if (rerunStatus) rerunStatus.textContent = '';
   if (!sections.length) {
     const empty = document.createElement('p');
     empty.className = 'outline-empty';
-    empty.textContent = 'AIアウトラインはまだありません。新しい文字起こしでAI仕上げを有効にすると、ここへ自動生成されます。';
+    empty.textContent = 'AIアウトラインはまだありません。右上の「アウトラインを再実行」で、保存済みの文字起こしから作成できます。';
     content.append(empty);
     view.hidden = false;
     return;
   }
-  sections.forEach(section => {
-    const row = document.createElement('section');
+  if (typeof outline.summary === 'string' && outline.summary.trim()) {
+    const overall = document.createElement('section');
+    overall.className = 'outline-overall-summary';
+    const label = document.createElement('h4');
+    label.textContent = '全体要約';
+    const text = document.createElement('p');
+    text.textContent = outline.summary;
+    overall.append(label, text);
+    content.append(overall);
+  }
+  const segments = (currentJob && Array.isArray(currentJob.segments) ? currentJob.segments : [])
+    .slice().sort((a, b) => Number(a.start || 0) - Number(b.start || 0));
+  const timed = segments.filter(analysisEvidenceTimeValid);
+  const mediaLength = mediaPlayer && Number.isFinite(mediaPlayer.duration) ? mediaPlayer.duration : 0;
+  const wholeEnd = Math.max(mediaLength, ...timed.map(segment => segment.end), 0);
+  if (timed.length) {
+    const all = outlineSpeechStats(timed, 0, wholeEnd, true);
+    const totals = document.createElement('section');
+    totals.className = 'outline-totals';
+    const label = document.createElement('h4');
+    label.textContent = '全体の発話量・空白時間';
+    totals.append(label, outlineStatChips(all));
+    if (timed.length < segments.length) {
+      const note = document.createElement('small');
+      note.textContent = `時刻のない発話 ${segments.length - timed.length}件は時間の集計に含めていません。`;
+      totals.append(note);
+    }
+    content.append(totals);
+  }
+  // Meetings: decisions found in the minutes are listed up front and again under
+  // the agenda item they were made in. They are rule-based candidates.
+  const decisions = ((currentJob && currentJob.meeting_minutes && currentJob.meeting_minutes.decisions) || [])
+    .filter(item => item && item.text);
+  const decisionLine = decision => {
+    const line = document.createElement('div');
+    line.className = 'outline-decision';
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'outline-utterance-time';
+    play.textContent = formatTime(decision.evidence_start);
+    if (decision.evidence_segment_id) play.addEventListener('click', () => playSegment(decision.evidence_segment_id));
+    else play.disabled = true;
+    const text = document.createElement('span');
+    text.textContent = `${decision.speaker ? decision.speaker + '：' : ''}${decision.text}`;
+    line.append(play, text);
+    return line;
+  };
+  if (decisions.length) {
+    const box = document.createElement('section');
+    box.className = 'outline-decisions';
+    const label = document.createElement('h4');
+    label.textContent = `決まったこと（候補 ${decisions.length}件）`;
+    box.append(label);
+    decisions.forEach(decision => box.append(decisionLine(decision)));
+    const note = document.createElement('small');
+    note.textContent = '「決定」「にします」などの表現から自動抽出した候補です。時刻を押すと元の発話を再生します。';
+    box.append(note);
+    content.append(box);
+  }
+  sections.forEach((section, index) => {
+    const row = document.createElement('details');
     row.className = 'outline-section';
+    const sectionDecisions = decisions.filter(item => Number(item.evidence_start) >= (Number(section.start) || 0)
+      && (index === sections.length - 1 ? Number(item.evidence_start) <= Number(section.end)
+        : Number(item.evidence_start) < Number(section.end)));
+    const head = document.createElement('summary');
     const time = document.createElement('span');
     time.className = 'outline-time';
     time.textContent = `${formatTime(section.start)}–${formatTime(section.end)}`;
-    const body = document.createElement('div');
+    const heading = document.createElement('div');
+    heading.className = 'outline-section-head';
     const title = document.createElement('h4');
     title.textContent = section.title || '議題';
+    heading.append(title);
+    const last = index === sections.length - 1;
+    const stats = outlineSpeechStats(timed, Number(section.start) || 0, Number(section.end) || 0, last);
+    if (timed.length) heading.append(outlineStatChips(stats));
+    if (sectionDecisions.length) {
+      const badge = document.createElement('span');
+      badge.className = 'outline-decision-badge';
+      badge.textContent = `決定 ${sectionDecisions.length}`;
+      heading.append(badge);
+    }
+    head.append(time, heading);
+
+    const body = document.createElement('div');
+    body.className = 'outline-section-body';
     const list = document.createElement('ul');
     (section.bullets || []).forEach(value => {
       const item = document.createElement('li');
       item.textContent = value;
       list.append(item);
     });
-    body.append(title, list);
-    row.append(time, body);
+    body.append(list);
+    if (sectionDecisions.length) {
+      const decided = document.createElement('div');
+      decided.className = 'outline-decisions-inline';
+      const label = document.createElement('small');
+      label.textContent = 'この議題で決まったこと（候補）';
+      decided.append(label);
+      sectionDecisions.forEach(decision => decided.append(decisionLine(decision)));
+      body.append(decided);
+    }
+    row.append(head, body);
+    // The utterances behind the agenda item are built on first open.
+    row.addEventListener('toggle', () => {
+      if (!row.open || body.querySelector('.outline-utterances')) return;
+      const inside = timed.filter(segment => segment.start >= (Number(section.start) || 0)
+        && (last ? segment.start <= Number(section.end) : segment.start < Number(section.end)));
+      const box = document.createElement('div');
+      box.className = 'outline-utterances';
+      const caption = document.createElement('small');
+      caption.textContent = inside.length ? `この区間の発話（${inside.length}件・時刻を押すと再生）` : 'この区間に時刻付きの発話はありません。';
+      box.append(caption);
+      inside.forEach(segment => {
+        const line = document.createElement('div');
+        line.className = 'outline-utterance';
+        const play = document.createElement('button');
+        play.type = 'button';
+        play.className = 'outline-utterance-time';
+        play.textContent = formatTime(segment.start);
+        play.addEventListener('click', () => playSegment(segment.id));
+        const who = document.createElement('strong');
+        who.textContent = displaySpeakerName(segment.speaker);
+        const text = document.createElement('span');
+        text.textContent = segment.text || '';
+        line.append(play, who, text);
+        box.append(line);
+      });
+      body.append(box);
+    });
     content.append(row);
   });
   view.hidden = false;
+}
+
+function formatSpan(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  if (h) return `${h}時間${m}分`;
+  return m ? `${m}分${String(s).padStart(2, '0')}秒` : `${s}秒`;
+}
+
+// Speech is the union of the timed segments inside [from, to], so overlapping
+// speakers are not counted twice; silence is whatever is left of the range.
+function outlineSpeechStats(timed, from, to, inclusiveEnd) {
+  const spans = [];
+  let count = 0, characters = 0;
+  timed.forEach(segment => {
+    const start = Math.max(from, segment.start), end = Math.min(to, segment.end);
+    if (end > start) spans.push([start, end]);
+    if (segment.start >= from && (inclusiveEnd ? segment.start <= to : segment.start < to)) {
+      count += 1;
+      characters += String(segment.text || '').length;
+    }
+  });
+  spans.sort((a, b) => a[0] - b[0]);
+  let speech = 0, cursor = from;
+  spans.forEach(([start, end]) => {
+    const from_ = Math.max(start, cursor);
+    if (end > from_) { speech += end - from_; cursor = end; }
+  });
+  const total = Math.max(0, to - from);
+  return {total, speech, silence: Math.max(0, total - speech), count, characters};
+}
+
+function outlineStatChips(stats) {
+  const host = document.createElement('div');
+  host.className = 'outline-stats';
+  const share = stats.total > 0 ? ` (${Math.round(stats.speech / stats.total * 100)}%)` : '';
+  [
+    `全体 ${formatSpan(stats.total)}`,
+    `発話 ${formatSpan(stats.speech)}${share}`,
+    `空白 ${formatSpan(stats.silence)}`,
+    `${stats.count}発話・${stats.characters}文字`,
+  ].forEach(text => {
+    const chip = document.createElement('span');
+    chip.textContent = text;
+    host.append(chip);
+  });
+  return host;
 }
 
 function segmentEmotionText(segment) {
@@ -5259,6 +5547,60 @@ function moderatorCountText(count) {
   return `司会・進行 ${count}人`;
 }
 
+function renderConversationParticipation(metrics) {
+  const container = document.querySelector('#conversation-participation');
+  if (!container) return;
+  container.replaceChildren();
+  if (!currentJob) return;
+  const entries = Object.entries(metrics);
+  const totalCount = entries.reduce((sum, [, metric]) => sum + metric.count, 0);
+  const missingCount = entries.reduce((sum, [, metric]) => sum + metric.missingTimeCount, 0);
+  const useTime = entries.length > 0 && entries.every(([, metric]) => metric.share !== null);
+  const heading = document.createElement('h4');
+  heading.id = 'conversation-participation-title';
+  heading.textContent = '話者別の発言量';
+  const note = document.createElement('p');
+  note.className = 'conversation-participation-note';
+  note.textContent = !totalCount ? '発話を追加すると、話者ごとの発言量を表示します。'
+    : `全 ${totalCount}発話 / ${entries.length}話者。棒グラフは${useTime ? '発言時間' : '発話回数'}の割合です。`
+      + (missingCount ? ` 時刻不明 ${missingCount}発話のため、時間の割合は算出できません。` : '')
+      + (useTime ? ' 発言時間は各発話の時間の合計です（重なりを含みます）。' : '');
+  container.append(heading, note);
+  const list = document.createElement('ul');
+  list.className = 'conversation-participation-list';
+  entries.sort(([, a], [, b]) => useTime ? b.seconds - a.seconds : b.count - a.count);
+  entries.forEach(([label, metric]) => {
+    const row = document.createElement('li');
+    row.className = 'conversation-participation-row';
+    const name = document.createElement('strong');
+    name.className = 'conversation-participation-name';
+    name.textContent = displaySpeakerName(label);
+    name.title = `話者ID: ${label}`;
+    const share = useTime ? metric.share : metric.count / totalCount;
+    const percentage = document.createElement('span');
+    percentage.className = 'conversation-participation-share';
+    percentage.textContent = `${(share * 100).toFixed(1)}%`;
+    const track = document.createElement('div');
+    track.className = 'conversation-participation-track';
+    track.setAttribute('aria-hidden', 'true');
+    const bar = document.createElement('span');
+    bar.style.width = `${Math.max(0, Math.min(100, share * 100))}%`;
+    const color = currentJob.speaker_profiles?.[label]?.theme_color || '';
+    if (/^#[0-9a-f]{6}$/i.test(color)) bar.style.backgroundColor = color;
+    track.append(bar);
+    const detail = document.createElement('span');
+    detail.className = 'conversation-participation-detail';
+    const time = !metric.timedCount ? '時刻不明'
+      : metric.seconds === null ? '時間を算出できません'
+      : `${formatTime(metric.seconds)}${metric.missingTimeCount ? '（時刻あり分）' : ''}`;
+    detail.textContent = `${metric.count}回 / ${time} / ${metric.characters}文字`;
+    if (metric.missingTimeCount) detail.textContent += ` / 時刻不明 ${metric.missingTimeCount}発話`;
+    row.append(name, percentage, track, detail);
+    list.append(row);
+  });
+  container.append(list);
+}
+
 function renderSpeakerEditor({focusSpeakerLabel = '', focusField = ''} = {}) {
   speakerEditor.replaceChildren();
   if (!currentJob) return;
@@ -5268,6 +5610,7 @@ function renderSpeakerEditor({focusSpeakerLabel = '', focusField = ''} = {}) {
   ensureConversationSpeakerProfiles();
   const labels = speakerLabels();
   const metrics = speakerMetrics();
+  renderConversationParticipation(metrics);
   renderSpeakerInsights(metrics);
   if (!labels.length) {
     const note = document.createElement('p');
@@ -5708,6 +6051,7 @@ function renderSegments() {
     textarea.addEventListener('input', () => {
       segment.text = textarea.value;
       textPreview.textContent = textarea.value;
+      renderConversationParticipation(speakerMetrics());
       setCurrentJobDirty();
     });
     body.append(fields, textPreview, textarea);
@@ -5728,6 +6072,7 @@ function renderSegments() {
         segment.text = segment.ai_review.original_text || '';
         textarea.value = segment.text;
         textPreview.textContent = segment.text;
+        renderConversationParticipation(speakerMetrics());
         setCurrentJobDirty();
       });
       review.append(summary, reasons, original, restore);
@@ -5778,6 +6123,7 @@ function renderSegments() {
 }
 
 function updateSpeakerBadges() {
+  renderConversationParticipation(speakerMetrics());
   document.querySelectorAll('.segment-speaker').forEach(badge => {
     const label = badge.dataset.label;
     badge.textContent = displaySpeakerName(label);
@@ -5860,6 +6206,60 @@ async function rerunSpeakerIdentification() {
 }
 
 listen(rerunSpeakerIdentificationButton, 'click', rerunSpeakerIdentification);
+
+// Rebuilds the AI outline (and its overall summary) from the saved transcript.
+// Only the outline is replaced; the transcript and speaker names are not touched.
+const outlineRerunButton = document.querySelector('#outline-rerun-button');
+const outlineRerunProvider = document.querySelector('#outline-rerun-provider');
+const outlineRerunStatus = document.querySelector('#outline-rerun-status');
+
+async function rerunOutline() {
+  if (!currentJobId || !currentJob || !outlineRerunButton || outlineRerunButton.disabled) return;
+  const say = (text, isError = false) => {
+    if (outlineRerunStatus) { outlineRerunStatus.textContent = text; outlineRerunStatus.dataset.error = isError ? '1' : ''; }
+  };
+  if (currentJobDirty) {
+    say('編集内容を保存してからアウトラインを再実行してください。', true);
+    return;
+  }
+  if (currentJob.outline && !window.confirm('現在のアウトラインを新しい結果で置き換えます。AIの利用料がかかります。実行しますか？')) return;
+  const owner = {id: currentJobId, job: currentJob, navigation: resultRequestSequence,
+    mutation: currentJobMutationGeneration};
+  const ownsScreen = () => currentJobId === owner.id && resultRequestSequence === owner.navigation;
+  outlineRerunButton.disabled = true;
+  if (outlineRerunProvider) outlineRerunProvider.disabled = true;
+  say('会話全体からアウトラインと全体要約を作成しています。長い会話では数分かかります…');
+  try {
+    const response = await apiFetch(`/api/library/${encodeURIComponent(owner.id)}/outline`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        provider: outlineRerunProvider ? outlineRerunProvider.value : 'openai',
+        revision_count: Number(currentJob.revision_count || 0)
+      })
+    });
+    const data = await readJsonResponse(response);
+    if (!ownsScreen() || currentJob !== owner.job) return;
+    if (!response.ok) throw new Error(data.error || 'アウトラインを再実行できませんでした。');
+    if (currentJobMutationGeneration !== owner.mutation || currentJobDirty) {
+      say('アウトラインは保存済みです。編集中の内容を保持したため、保存後に再読み込みすると反映されます。', true);
+      return;
+    }
+    renderResult(data);
+    owner.job = currentJob;
+    owner.navigation = resultRequestSequence;
+    say(`アウトラインを作り直しました（${(data.outline_run || {}).section_count || 0}議題）。`);
+  } catch (error) {
+    if (ownsScreen()) say(error.message, true);
+  } finally {
+    if (ownsScreen()) {
+      outlineRerunButton.disabled = false;
+      if (outlineRerunProvider) outlineRerunProvider.disabled = false;
+    }
+  }
+}
+
+listen(outlineRerunButton, 'click', rerunOutline);
 
 ['#segment-keyword', '#segment-speaker-filter', '#segment-emotion-filter', '#segment-jev-filter', '#segment-sort'].forEach(selector => {
   const element = document.querySelector(selector);
@@ -8739,7 +9139,7 @@ function applyRouteFromLocation({fromHistory = false, initial = false} = {}) {
   let route = parseRouteHash(window.location.hash);
   if (!route && initial) {
     const requestedView = requestedParameters.get('view');
-    const view = ['new', 'library', 'speakers', 'analysis'].includes(requestedView) ? requestedView : 'new';
+    const view = Object.hasOwn(viewRouteHashes, requestedView) ? requestedView : 'new';
     route = {view, itemId: view === 'analysis' ? String(requestedParameters.get('item') || '') : ''};
   }
   if (!route) route = {view: 'new', itemId: ''};

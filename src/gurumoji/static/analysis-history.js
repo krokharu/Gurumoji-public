@@ -211,7 +211,7 @@
     if(!state.slides||state.slides.busy)return;
     const stamp=token(),request=++state.slidesRequest,template=state.slides.templateId;state.slides.busy=true;state.slides.receipt=null;renderSlideDesign();node('slide-status').textContent='設計とpromptの保存を確認しています…';
     try {
-      const response=await fetch(`${runBase()}/slides/design`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({template,expected_snapshot:state.slides.snapshot})});
+      const response=await apiFetch(`${runBase()}/slides/design`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({template,expected_snapshot:state.slides.snapshot})});
       if(!response.ok)throw Error(`設計の保存を確認できません（HTTP ${response.status}）。`);
       const data=await response.json();if(!slideCurrent(stamp,request))return;
       const receipt=data.design;if(!receipt||receipt.template_id!==template||!receipt.design_hash||!state.slides.snapshot||receipt.snapshot_signature!==state.slides.snapshot)throw Error('設計の保存記録を確認できません。');

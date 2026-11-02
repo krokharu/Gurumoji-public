@@ -88,7 +88,10 @@ def whisper_settings(options: Any, language: str | None, *, diarization_model: s
     vocabulary = list(options.custom_vocabulary) if transcription_backend == "whisperx" else []
     return {
         "transcription_backend": transcription_backend,
-        "model": "Qwen/Qwen3-ASR-1.7B" if transcription_backend == "qwen3_nemotron" else options.model_name,
+        "model": {
+            "qwen3_nemotron": "Qwen/Qwen3-ASR-1.7B",
+            "haas_ja": "third-intelligence/Haas-ja-v1.0",
+        }.get(transcription_backend, options.model_name),
         "language": language,
         "device": options.device,
         "diarization_device": options.diarization_device,

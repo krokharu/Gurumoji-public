@@ -81,6 +81,7 @@
               <small id="speaker-identity-status">空欄の話者名だけに反映します。</small>
             </div>
           </div>
+          <section id="conversation-participation" class="conversation-participation" aria-labelledby="conversation-participation-title"></section>
           <div class="session-profile-grid">
             <label class="field"><span>会話種別</span><select id="session-type"><option value="focus_group">グループインタビュー</option><option value="meeting">会議</option><option value="chat">雑談</option><option value="interview">インタビュー</option><option value="workshop">ワークショップ</option><option value="other">その他</option></select></label>
             <label class="field"><span>実施日</span><input id="session-date" type="date"><small id="session-date-note" class="field-note">動画の撮影日時があれば自動入力します。いつでも手動で変更できます。</small></label>
@@ -115,6 +116,7 @@
             </div>
           </div>
           <p id="meeting-minutes-method" class="meeting-minutes-method"></p>
+          {% if obsidian_enabled %}
           <section class="meeting-obsidian-panel" aria-labelledby="meeting-obsidian-title">
             <div>
               <strong id="meeting-obsidian-title">Obsidian連携</strong>
@@ -126,6 +128,7 @@
               <a id="meeting-obsidian-open" class="secondary-button" href="#" hidden>Obsidianで開く</a>
             </div>
           </section>
+          {% endif %}
           <div id="meeting-minutes-summary" class="meeting-minutes-summary" aria-live="polite"></div>
           <div class="meeting-visual-grid">
             <section class="meeting-visual-card"><h4>優先度</h4><div id="meeting-priority-chart" class="meeting-priority-chart"></div></section>
@@ -144,7 +147,12 @@
         <div id="outline-view" class="outline-view">
           <div class="outline-title-row">
             <h3>AI自動生成アウトライン</h3>
+            <div class="outline-rerun">
+              <select id="outline-rerun-provider" aria-label="アウトラインを作成するAI"><option value="openai">OpenAI</option><option value="google">Google Gemini</option><option value="lmstudio">{{ local_llm_label }}</option></select>
+              <button id="outline-rerun-button" class="secondary-button compact-button" type="button">アウトラインを再実行</button>
+            </div>
           </div>
+          <small id="outline-rerun-status" class="outline-rerun-status" role="status"></small>
           <div id="outline-content" class="outline-content"></div>
         </div>
         <div id="emotion-view" class="emotion-view" hidden>
@@ -219,6 +227,6 @@
       </section>
       <div class="sticky-actions">
         <button id="save-button" class="primary-button small" type="button">編集内容を保存</button>
-        <button id="obsidian-finishing-button" class="secondary-button" type="button">Obsidianで仕上げ</button>
+        {% if obsidian_enabled %}<button id="obsidian-finishing-button" class="secondary-button" type="button">Obsidianで仕上げ</button>{% endif %}
       </div>
     </section>

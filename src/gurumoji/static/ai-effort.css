@@ -12,8 +12,9 @@
 .effort-disclosure > summary { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px 12px; min-height: 44px; padding: 16px; cursor: pointer; list-style: none; }
 .effort-disclosure > summary::-webkit-details-marker { display: none; }
 .effort-disclosure > summary strong { align-self: center; font-size: 1rem; overflow-wrap: anywhere; }
-.effort-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #e7f1e6; color: #1c6b50; }
+.effort-icon { display: grid; place-items: center; width: 44px; height: 44px; background: transparent; color: #1c6b50; }
 .effort-icon svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+.effort-icon img { width: 34px; height: 34px; object-fit: contain; }
 .effort-current { grid-column: 1 / -1; justify-self: start; border-radius: 20px; background: #e7f1e6; color: #13513c; padding: 4px 12px; font-weight: 800; }
 .effort-open-label { grid-column: 1 / -1; color: #1c6b50; font-size: .85rem; font-weight: 700; }
 .effort-open-label::after { content: ' ＋'; }

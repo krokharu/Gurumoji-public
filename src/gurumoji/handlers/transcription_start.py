@@ -15,6 +15,7 @@ from typing import Any, Callable
 from werkzeug.exceptions import RequestEntityTooLarge
 
 from ..ai_effort import normalize_efforts
+from ..features import OBSIDIAN_ENABLED
 from ..media_formats import ALLOWED_EXTENSIONS
 from ..services.ai.settings import (
     AI_PROVIDERS,
@@ -32,9 +33,13 @@ from ..services.transcription.options import (
     JobOptions,
     LANGUAGES,
     MODEL_NAMES,
+    EXTERNAL_STACK_BACKENDS,
     TRANSCRIPTION_BACKENDS,
 )
+from ..services.transcription.haas_stack import haas_setup_message, haas_stack_available
 from ..services.transcription.qwen_stack import qwen_stack_available, qwen_stack_setup_message
+from ..services.transcription.reuse import reuse_available, reuse_setup_message
+from ..services.transcription.prior_context import normalize_prior_outline, normalize_prior_speakers
 from ..services.transcription.vocabulary import normalize_custom_vocabulary
 from .form_fields import (
     parse_audio_preprocess,
@@ -101,24 +106,42 @@ def make_transcription_start(
                 raise ValueError("文字起こしエンジンの指定が不正です。")
             if transcription_backend == "qwen3_nemotron" and not qwen_stack_available():
                 raise ValueError(qwen_stack_setup_message())
+            if transcription_backend == "haas_ja" and not haas_stack_available():
+                raise ValueError(haas_setup_message())
             language_raw = form.get("language", "ja").strip()
             language = language_raw or None
             if language not in LANGUAGES:
                 raise ValueError("言語が不正です。")
+            if transcription_backend == "haas_ja" and language not in {None, "ja"}:
+                raise ValueError("Haas-jaは日本語専用です。言語を日本語にしてください。")
             audio_preprocess = parse_audio_preprocess(form=form)
+            if audio_preprocess == "reuse" and not reuse_available():
+                raise ValueError(reuse_setup_message())
             conversation_mode = form.get("conversation_mode", "meeting").strip()
             if conversation_mode not in CONVERSATION_MODES:
                 raise ValueError("会話モードが不正です。")
-            custom_vocabulary = normalize_custom_vocabulary(
-                form.get("custom_vocabulary", "")
+            if parse_bool("use_custom_vocabulary", True, form=form):
+                custom_vocabulary = normalize_custom_vocabulary(
+                    form.get("custom_vocabulary", "")
+                )
+                # Save here as well as from the UI's background save so a term entered
+                # immediately before pressing start is retained for the next job.
+                save_custom_vocabulary(custom_vocabulary)
+            else:
+                # Switched off for this run only: the saved list stays untouched.
+                custom_vocabulary = ()
+            # Hints supplied before the run; they reach recognition and name matching only.
+            prior_speakers = normalize_prior_speakers(form.get("prior_speakers", ""))
+            prior_outline = (
+                normalize_prior_outline(form.get("prior_outline", ""))
+                if parse_bool("use_prior_outline", True, form=form) else ""
             )
-            # Save here as well as from the UI's background save so a term entered
-            # immediately before pressing start is retained for the next job.
-            save_custom_vocabulary(custom_vocabulary)
             device = form.get("device", "cuda")
             diarization_device = form.get("diarization_device", "cpu")
             if device not in {"cpu", "cuda"} or diarization_device not in {"cpu", "cuda"}:
                 raise ValueError("処理装置の指定が不正です。")
+            if transcription_backend == "haas_ja" and device != "cuda":
+                raise ValueError("Haas-jaはGPU専用です。文字起こし装置をGPUにしてください。")
             machine = get_machine_profile()
             if (device == "cuda" or diarization_device == "cuda") and not machine["gpu"]["cuda_available"]:
                 raise ValueError(
@@ -128,7 +151,7 @@ def make_transcription_start(
             min_speakers = parse_optional_int("min_speakers", form=form)
             max_speakers = parse_optional_int("max_speakers", form=form)
             num_speakers = parse_optional_int("num_speakers", form=form)
-            if transcription_backend == "qwen3_nemotron" and any(
+            if transcription_backend in EXTERNAL_STACK_BACKENDS and any(
                 value is not None and value > 8
                 for value in (min_speakers, max_speakers, num_speakers)
             ):
@@ -136,8 +159,8 @@ def make_transcription_start(
             if min_speakers and max_speakers and min_speakers > max_speakers:
                 raise ValueError("最少話者数は最多話者数以下にしてください。")
             triple_pass = parse_bool("triple_pass", form=form)
-            if transcription_backend == "qwen3_nemotron" and triple_pass:
-                raise ValueError("詳細処理はWhisperXでのみ利用できます。Qwen3方式ではオフにしてください。")
+            if transcription_backend in EXTERNAL_STACK_BACKENDS and triple_pass:
+                raise ValueError("詳細処理はWhisperXでのみ利用できます。この方式ではオフにしてください。")
             boost_quiet_speech = parse_bool("boost_quiet_speech", default=True, form=form)
             if boost_quiet_speech or triple_pass:
                 vad_onset = parse_optional_float(
@@ -166,7 +189,8 @@ def make_transcription_start(
             clean_transcript = parse_bool("clean_transcript", form=form)
             detect_names = parse_bool("detect_speaker_names", form=form)
             create_outline = parse_bool("create_outline", form=form)
-            finish_in_obsidian = parse_bool(
+            # The Obsidian deferral is withdrawn from this release; every run finishes in place.
+            finish_in_obsidian = OBSIDIAN_ENABLED and parse_bool(
                 "finish_in_obsidian", default=not finishing_mode_value, form=form
             )
             ai_efforts = normalize_efforts({
@@ -296,6 +320,8 @@ def make_transcription_start(
                 finish_in_obsidian=finish_in_obsidian,
                 conversation_mode=conversation_mode,
                 custom_vocabulary=custom_vocabulary,
+                prior_speakers=prior_speakers,
+                prior_outline=prior_outline,
                 recommended_cleanup=recommended_cleanup,
                 jev_compare=jev_compare,
                 jev_api_key=token_config.typesafe_api_key,

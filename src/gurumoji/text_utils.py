@@ -18,6 +18,50 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+_SEGMENT_REF = r"(?:[0-9a-f]{32}|unpersisted-\d+)"
+_SEGMENT_REF_GROUP = re.compile(
+    rf"\s*[（(\[［]\s*{_SEGMENT_REF}(?:\s*[,、，;；/]\s*{_SEGMENT_REF})*\s*[）)\]］]", re.I)
+_SEGMENT_REF_BARE = re.compile(rf"\s*\b{_SEGMENT_REF}\b", re.I)
+
+
+def strip_segment_refs(value: Any) -> str:
+    """Remove evidence segment IDs that a model copied into display text."""
+    text = _SEGMENT_REF_GROUP.sub("", str(value or ""))
+    return _SEGMENT_REF_BARE.sub("", text).strip()
+
+
+def clean_outline_refs(outline: Any) -> Any:
+    """Return the outline with segment IDs removed from every display string.
+
+    ``segment_ids`` and ``evidence`` stay intact: they are the real links to the
+    transcript, while titles, bullets and the summary are for reading.
+    """
+    if not isinstance(outline, dict):
+        return outline
+    cleaned = dict(outline)
+    if isinstance(cleaned.get("summary"), str):
+        cleaned["summary"] = strip_segment_refs(cleaned["summary"])
+    sections = []
+    for section in outline.get("sections") or []:
+        if not isinstance(section, dict):
+            sections.append(section)
+            continue
+        item = dict(section)
+        if isinstance(item.get("title"), str):
+            item["title"] = strip_segment_refs(item["title"])
+        if isinstance(item.get("bullets"), list):
+            item["bullets"] = [strip_segment_refs(b) if isinstance(b, str) else b
+                               for b in item["bullets"]]
+        if isinstance(item.get("bullet_evidence"), list):
+            item["bullet_evidence"] = [
+                {**b, "text": strip_segment_refs(b["text"])}
+                if isinstance(b, dict) and isinstance(b.get("text"), str) else b
+                for b in item["bullet_evidence"]]
+        sections.append(item)
+    cleaned["sections"] = sections
+    return cleaned
+
+
 def json_load(value: str | None, fallback: Any) -> Any:
     if not value:
         return fallback

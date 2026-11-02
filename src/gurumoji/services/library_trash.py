@@ -33,8 +33,10 @@ DEFAULT_RETENTION_DAYS = 30
 ITEM_TABLES = ("library_items", "transcript_versions", "transcript_preparations",
                "transcript_preparation_events", "output_import_provenance",
                "transcript_change_bases", "transcript_changes",
-               "conversation_attributes", "conversation_tags", "data_group_members", "analysis_definitions")
-# Disposable query copies and derived facts are deleted, but not put in the manifest.
+               "conversation_attributes", "conversation_tags", "data_group_members", "analysis_definitions",
+               "segment_embeddings", "segment_labels")
+# These rows are deleted with the conversation. Analysis references are also
+# included in ITEM_TABLES so fixed version-2 packages remain readable on restore.
 DISPOSABLE_ITEM_TABLES = (
     "conversation_speakers", "conversation_segments", "media_assets", "segment_embeddings", "segment_labels",
 )

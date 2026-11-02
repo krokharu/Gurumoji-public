@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from ..text_utils import clean_single_line, utc_now_iso
+from ..text_utils import clean_outline_refs, clean_single_line, utc_now_iso
 from .transcription.segments import default_speaker_name, display_time, segment_bounds
 
 MEETING_MINUTES_VERSION = "1.0"
@@ -29,10 +29,14 @@ MEETING_TASK_PRIORITY_LABELS = {
 
 def format_outline_text(source_name: str, outline: dict[str, Any]) -> str:
     lines = ["議題・アウトライン", f"元ファイル: {source_name}", ""]
+    outline = clean_outline_refs(outline)
     sections = outline.get("sections") if isinstance(outline, dict) else None
     if not isinstance(sections, list) or not sections:
         lines.append("アウトラインは作成されませんでした。")
         return "\n".join(lines)
+    summary = str(outline.get("summary") or "").strip()
+    if summary:
+        lines += ["全体要約", summary, ""]
     for index, section in enumerate(sections, 1):
         title = str(section.get("title", "")).strip() or f"議題 {index}"
         start = display_time(float(section.get("start", 0)))

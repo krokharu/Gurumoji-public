@@ -1,0 +1,58 @@
+  <dialog id="general-settings-dialog" class="app-dialog general-settings-dialog" aria-labelledby="general-settings-title">
+    <form method="dialog">
+      <div class="app-dialog-header">
+        <h2 id="general-settings-title">通常設定</h2>
+        <p>この端末のブラウザに保存され、次回の起動から使われます。</p>
+      </div>
+
+      <section class="gs-section" aria-labelledby="gs-language-title">
+        <h3 id="gs-language-title">言語設定 <span class="gs-soon">Coming Soon</span></h3>
+        <label class="field">
+          <span>文字起こしの既定言語</span>
+          <select id="gs-language" disabled>
+            <option value="">自動判定</option>
+            <option value="ja">日本語</option>
+            <option value="en">英語</option>
+            <option value="zh">中国語</option>
+            <option value="ko">韓国語</option>
+          </select>
+        </label>
+        <p class="gs-note">準備中です。公開までしばらくお待ちください。文字起こしの言語は、新規作成画面の設定でその都度選べます。</p>
+      </section>
+
+      <section class="gs-section" aria-labelledby="gs-folders-title">
+        <h3 id="gs-folders-title">保存先登録</h3>
+        <div class="gs-add">
+          <input id="gs-folder-input" type="text" autocomplete="off" placeholder="保存先フォルダーのフルパス" aria-label="登録する保存先フォルダー">
+          <button id="gs-folder-add" type="button" class="secondary-button compact-button">登録</button>
+        </div>
+        <ul id="gs-folder-list" class="gs-folder-list" aria-live="polite"></ul>
+        <p class="gs-note">「既定にする」と、起動時に実行設定の出力先へ入ります。実行設定の出力先欄では、登録した保存先を候補から選べます。</p>
+      </section>
+
+      <section class="gs-section" aria-labelledby="gs-mode-title">
+        <h3 id="gs-mode-title">モード切替</h3>
+        <div class="gs-choices" role="radiogroup" aria-label="起動時の録音モード">
+          <label><input type="radio" name="gs-mode" value="meeting"><span>会議</span></label>
+          <label><input type="radio" name="gs-mode" value="group_interview"><span>グループインタビュー</span></label>
+          <label><input type="radio" name="gs-mode" value="chat"><span>雑談</span></label>
+        </div>
+        <p class="gs-note">起動時に選ばれている録音モードです。新規作成画面でも、その都度切り替えられます。</p>
+      </section>
+
+      <section class="gs-section" aria-labelledby="gs-theme-title">
+        <h3 id="gs-theme-title">テーマ選択</h3>
+        <div class="gs-themes" role="radiogroup" aria-label="カラーテーマ">
+          <label><input type="radio" name="gs-theme" value="forest"><i data-swatch="forest"></i><span>フォレスト</span></label>
+          <label><input type="radio" name="gs-theme" value="teal"><i data-swatch="teal"></i><span>ティール</span></label>
+          <label><input type="radio" name="gs-theme" value="slate"><i data-swatch="slate"></i><span>スレート</span></label>
+          <label><input type="radio" name="gs-theme" value="mocha"><i data-swatch="mocha"></i><span>モカ</span></label>
+        </div>
+      </section>
+
+      <div class="app-dialog-actions">
+        <button id="gs-reset" class="secondary-button" type="button">初期設定に戻す</button>
+        <button class="primary-button small" type="submit">閉じる</button>
+      </div>
+    </form>
+  </dialog>

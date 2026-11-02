@@ -116,6 +116,13 @@ def definitions(db) -> list[dict]:
             for r in db.execute("SELECT * FROM attribute_definitions ORDER BY scope,key")]
 
 
+def same_value(left: Any, right: Any) -> bool:
+    """Compare JSON numbers by value without treating booleans as numbers."""
+    if type(left) in (int, float) and type(right) in (int, float):
+        return left == right
+    return type(left) is type(right) and left == right
+
+
 def valid_value(definition: dict, value: Any) -> bool:
     if value is None:
         return True
@@ -123,7 +130,7 @@ def valid_value(definition: dict, value: Any) -> bool:
     valid = {"string": isinstance(value, str), "number": type(value) in (int, float) and math.isfinite(value),
              "integer": type(value) is int, "boolean": type(value) is bool}.get(kind, False)
     allowed = json.loads(definition["allowed_values_json"])
-    return valid and (not allowed or any(type(value) is type(v) and value == v for v in allowed))
+    return valid and (not allowed or any(same_value(value, v) for v in allowed))
 
 
 def save_definition(db, payload: dict) -> dict:
@@ -140,6 +147,30 @@ def save_definition(db, payload: dict) -> dict:
     old = db.execute("SELECT * FROM attribute_definitions WHERE key=? AND scope=?", (key, scope)).fetchone()
     if old and payload.get("version") != old["version"]:
         raise ValueError("属性定義が更新されています。読み直してください。")
+    # Existing mismatches must not block edits to descriptions or measurement
+    # levels. Compare the permitted-value sets without depending on their order.
+    constraints_changed = True
+    if old and old["data_type"] == kind:
+        try:
+            previous = json.loads(old["allowed_values_json"])
+            constraints_changed = not isinstance(previous, list) or bool(previous) != bool(allowed) or (
+                any(not any(same_value(v, candidate) for candidate in allowed) for v in previous)
+                or any(not any(same_value(v, candidate) for candidate in previous) for v in allowed))
+        except (TypeError, ValueError):
+            constraints_changed = True
+    # Conversation values are checked on write. Preserve the speaker contract,
+    # which reports incompatible values through the integrity check instead.
+    if scope == "conversation" and constraints_changed:
+        proposed = {"data_type": kind, "allowed_values_json": canonical(allowed).decode()}
+        incompatible = 0
+        for row in db.execute("SELECT value_json FROM conversation_attributes WHERE key=?", (key,)):
+            try:
+                compatible = valid_value(proposed, json.loads(row[0]))
+            except (TypeError, ValueError):
+                compatible = False
+            incompatible += not compatible
+        if incompatible:
+            raise ValueError(f"既存の会話属性 {incompatible} 件が新しい型または許される値と一致しません。値を確認してから変更してください。")
     with change_log.tracking(db, [("attribute_definitions", "global")], process="attribute_definition_save"):
         db.execute("""INSERT INTO attribute_definitions VALUES (?,?,?,?,?,?,?,?)
             ON CONFLICT(key,scope) DO UPDATE SET data_type=excluded.data_type,
@@ -300,11 +331,11 @@ def matches(db, item_id, condition) -> bool:
     if op == "exists":
         return any(v is not None for v in values)
     if op == "ne":
-        return bool(values) and all(v is not None and v != wanted for v in values)
+        return bool(values) and all(v is not None and not same_value(v, wanted) for v in values)
     for value in values:
         if value is None:
             continue
-        if op == "eq" and type(value) is type(wanted) and value == wanted or op == "in" and any(type(value) is type(v) and value == v for v in wanted):
+        if op == "eq" and same_value(value, wanted) or op == "in" and any(same_value(value, v) for v in wanted):
             return True
         if op in {"gte", "lte"} and type(value) in (int, float) and (value >= wanted if op == "gte" else value <= wanted):
             return True

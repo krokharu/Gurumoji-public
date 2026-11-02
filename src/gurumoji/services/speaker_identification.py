@@ -399,6 +399,17 @@ def make_speaker_registration(
     return (link_detected_speakers_to_registry, register_detected_speakers)
 
 
+def known_speaker_note(known_speakers: tuple[tuple[str, str], ...]) -> str:
+    """Prompt sentence for the participant list the user registered before the run."""
+    if not known_speakers:
+        return ""
+    people = "、".join(f"{name}（{role}）" if role else name for name, role in known_speakers)
+    return (
+        f"利用者が事前に登録した参加者候補: {people}。氏名が候補と同じ人物を指す場合は候補の表記に揃えてください。"
+        "候補はあくまで参考で、発話根拠のない紐付けや、候補にない人物の名乗りの除外はしません。"
+    )
+
+
 def detect_speaker_names_with_ai(
     segments: list[dict[str, Any]],
     provider: str,
@@ -410,11 +421,13 @@ def detect_speaker_names_with_ai(
     diagnostics_callback: Callable[[dict[str, Any]], None] | None = None,
     base_url: str = "",
     ai_efforts: dict | None = None,
+    known_speakers: tuple[tuple[str, str], ...] = (),
     *,
     call_ai_json: Callable[..., dict[str, Any]],
 ) -> dict[str, str]:
     if check_cancelled is not None:
         check_cancelled()
+    known_note = known_speaker_note(known_speakers)
     labels = sorted({str(item["speaker"]) for item in segments if item.get("speaker")})
     if not labels:
         return {}
@@ -476,6 +489,7 @@ def detect_speaker_names_with_ai(
             "自己紹介が複数発話に分割されている場合は前後の発話をつなげて判断してください。"
             "根拠に使った発話の id を evidence_segment_ids に必ず入れてください。"
             "この段階では候補を漏らさないことを優先します。"
+            + known_note
         ),
         "話者ラベル付きの発話です。\n" + json.dumps(identity_context, ensure_ascii=False),
         "speaker_identity_extraction",
@@ -589,6 +603,7 @@ def detect_speaker_names_with_ai(
                 "同一人物と判定しません。また、短い発話だけ別 speaker になった A-B-A 型の断裂で、"
                 "前後と同一人物だと確実に判断できる場合だけ segment_speaker_corrections に返してください。"
                 "修復候補には対象発話と前後発話の id、0から1の confidence を入れてください。"
+                + known_note
             ),
             (
                 "一次候補:\n" + json.dumps(first_candidates, ensure_ascii=False)

@@ -83,7 +83,10 @@ from .handlers.speaker_registry import (
     SpeakerRegistryHandler,
 )
 from .web.analysis_routes import register_analysis_routes
+from .features import OBSIDIAN_ENABLED
 from .web.job_routes import register_job_routes
+from .web.outline_routes import register_outline_routes
+from .handlers.outline_rerun import OutlineRerunHandler, make_library_outline_rerun
 from .web.obsidian_routes import register_obsidian_routes
 from .web.speaker_routes import register_speaker_routes
 from .web.system_routes import register_system_routes
@@ -552,6 +555,7 @@ def runtime_info() -> dict[str, Any]:
         "os": system,
         "source_path_example": "/content/drive/MyDrive/..." if colab else r"C:\audio\recording.wav" if system == "Windows" else "/path/to/recording.wav",
         "qwen_setup_note": "Windowsで scripts\\setup_qwen_stack.bat を実行して準備します。モデルは初回起動時に取得される場合があります。" if system == "Windows" else "現在のQwen独立環境ランチャーはWindows用です。この実行環境の対応状況を確認してください。",
+        "haas_setup_note": "実験的・日本語専用。公式版Haas-jaはLinux＋NVIDIA GPUで動作します。WindowsはWSL2経由で実行します。scripts/setup_haas_ja.bat（Linuxは.sh）で準備します。発話区間は無音位置で区切ったおおよその時刻になります。",
         "colab": colab,
         "native_file_dialog": native_file_dialog,
         "browser_upload": not native_file_dialog,
@@ -1242,7 +1246,7 @@ def retire_input_vault(item_id: str) -> None:
 def whisper_vault_settings(options: JobOptions, language: str | None) -> dict[str, Any]:
     diarization_model = (
         "nvidia/Nemotron-3-Diarization"
-        if getattr(options, "transcription_backend", "whisperx") == "qwen3_nemotron"
+        if getattr(options, "transcription_backend", "whisperx") in ("qwen3_nemotron", "haas_ja")
         else DIARIZATION_MODEL
     )
     return whisper_settings(options, language, diarization_model=diarization_model)
@@ -1451,6 +1455,24 @@ identify_library_speakers = make_library_speaker_identification(
     row_session_profile=lambda *args, **kwargs: row_session_profile(*args, **kwargs),
     row_speaker_profiles=lambda *args, **kwargs: row_speaker_profiles(*args, **kwargs),
 )
+
+
+rerun_library_outline = make_library_outline_rerun(
+    configured_ai_credentials=lambda *args, **kwargs: configured_ai_credentials(*args, **kwargs),
+    create_outline_with_ai=lambda *args, **kwargs: create_outline_with_ai(*args, **kwargs),
+    database_connection=lambda *args, **kwargs: database_connection(*args, **kwargs),
+    library_public=lambda *args, **kwargs: library_public(*args, **kwargs),
+    library_row=lambda *args, **kwargs: library_row(*args, **kwargs),
+    library_write_lock=library_write_lock,
+    load_token_config=lambda *args, **kwargs: load_token_config(*args, **kwargs),
+    merge_ai_usage=lambda *args, **kwargs: merge_ai_usage(*args, **kwargs),
+    public_diagnostic_text=lambda *args, **kwargs: public_diagnostic_text(*args, **kwargs),
+    row_segments=lambda *args, **kwargs: row_segments(*args, **kwargs),
+)
+
+
+def outline_rerun_handler() -> OutlineRerunHandler:
+    return OutlineRerunHandler(rerun_library_outline)
 
 
 def obsidian_workbench() -> ObsidianWorkbench:
@@ -2061,23 +2083,28 @@ def create_app() -> Flask:
         lambda: MAX_CSV_UPLOAD_BYTES,
     )
 
+    register_outline_routes(flask_app, outline_rerun_handler, AI_MODEL_PROVIDERS)
+
     register_job_routes(flask_app, job_handler)
 
-    register_obsidian_routes(
-        flask_app,
-        local_access_allowed=local_path_access_allowed,
-        library_row=library_row,
-        row_segments=row_segments,
-        workbench=obsidian_workbench,
-        normalize_efforts=normalize_efforts,
-        write_lock=library_write_lock,
-        meeting_export_row=meeting_minutes_export_row,
-        meeting_fingerprint=meeting_minutes_fingerprint,
-        archive_meeting_minutes=archive_meeting_minutes,
-        publish_meeting_minutes=publish_meeting_minutes_to_obsidian,
-        log_warning=flask_app.logger.warning,
-        watcher_status=lambda: obsidian_watcher_status.snapshot(),
-    )
+    flask_app.jinja_env.globals["obsidian_enabled"] = OBSIDIAN_ENABLED
+
+    if OBSIDIAN_ENABLED:
+        register_obsidian_routes(
+            flask_app,
+            local_access_allowed=local_path_access_allowed,
+            library_row=library_row,
+            row_segments=row_segments,
+            workbench=obsidian_workbench,
+            normalize_efforts=normalize_efforts,
+            write_lock=library_write_lock,
+            meeting_export_row=meeting_minutes_export_row,
+            meeting_fingerprint=meeting_minutes_fingerprint,
+            archive_meeting_minutes=archive_meeting_minutes,
+            publish_meeting_minutes=publish_meeting_minutes_to_obsidian,
+            log_warning=flask_app.logger.warning,
+            watcher_status=lambda: obsidian_watcher_status.snapshot(),
+        )
 
     register_library_group_routes(
         flask_app,
@@ -2222,11 +2249,13 @@ def _run_initialized_application(host: str, port: int) -> int:
     print("終了するにはこのウィンドウで Ctrl+C を押してください。")
     if os.environ.get("MOJIOKOSI_NO_BROWSER") != "1":
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-    start_obsidian_watcher()
+    if OBSIDIAN_ENABLED:
+        start_obsidian_watcher()
     try:
         app.run(host=host, port=port, threaded=True, use_reloader=False)
     finally:
-        application_lifecycle().stop_watcher()
+        if OBSIDIAN_ENABLED:
+            application_lifecycle().stop_watcher()
     return 0
 
 

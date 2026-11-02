@@ -139,8 +139,13 @@
     $('data-group-save').textContent = 'グループを作成'; $('data-group-cancel').hidden = true;
     $('data-rule-conditions').replaceChildren(); $('data-rule-preview-result').textContent = ''; toggleRule();
   }
-  $('manage-data-catalog-button').addEventListener('click', () => act(async () => { await refresh(); status(''); dialog.showModal(); }));
-  $('data-catalog-close').addEventListener('click', () => dialog.close());
+  const openCatalog = () => act(async () => { status('読み込み中…'); await refresh(); status(''); });
+  $('manage-data-catalog-button').addEventListener('click', () => showView('catalog'));
+  $('data-catalog-close').addEventListener('click', () => showView('library'));
+  document.addEventListener('gurumoji-view-change', event => {
+    if (event.detail.view === 'catalog') openCatalog();
+  });
+  if (document.body.dataset.view === 'catalog') openCatalog();
   $('data-tag-form').addEventListener('submit', event => { event.preventDefault(); act(async () => {
     await api('/api/library/tags', {name: $('data-tag-name').value}); $('data-tag-form').reset();
     await refresh(); await loadLibrary(); status('タグを作成しました。');

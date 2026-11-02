@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1920" height="1080" viewBox="-120 -70 1912 1075" role="img" aria-labelledby="logo-title logo-desc">
+  <title id="logo-title">グルモジ</title>
+  <desc id="logo-desc">6秒で繰り返すグルモジのロゴアニメーション。輪が描かれ、文字が現れ、プラス記号が弾む。文字、濁点、吹き出しを囲む輪、3つの黄色いプラス記号を個別に編集可能。背景は透明。</desc>
+  <style><![CDATA[
+    #orbit { stroke-dasharray:1; animation:gm-draw 6s cubic-bezier(.4,0,.2,1) infinite; }
+    @keyframes gm-draw {0% {stroke-dashoffset:1;opacity:0} 2% {opacity:1} 32%,90% {stroke-dashoffset:0;opacity:1} 98%,100% {stroke-dashoffset:0;opacity:0}}
+
+    #glyph-gu {transform-box:fill-box; transform-origin:center; animation:gm-gu 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-gu {
+      0%,8.333% {opacity:0; transform:translateY(36px) scale(.96)}
+      14.000% {opacity:1;transform:translateY(-4px) scale(1.015)}
+      18.667% {opacity:1;transform:translateY(0px) scale(1)}
+      21.333%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #glyph-ru {transform-box:fill-box; transform-origin:center; animation:gm-ru 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-ru {
+      0%,11.333% {opacity:0; transform:translateY(36px) scale(.96)}
+      17.000% {opacity:1;transform:translateY(-4px) scale(1.015)}
+      21.667% {opacity:1;transform:translateY(0px) scale(1)}
+      24.333%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #glyph-mo {transform-box:fill-box; transform-origin:center; animation:gm-mo 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-mo {
+      0%,14.333% {opacity:0; transform:translateY(36px) scale(.96)}
+      20.000% {opacity:1;transform:translateY(-4px) scale(1.015)}
+      24.667% {opacity:1;transform:translateY(0px) scale(1)}
+      27.333%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #ji-body {transform-box:fill-box; transform-origin:center; animation:gm-ji 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-ji {
+      0%,17.333% {opacity:0; transform:translateY(36px) scale(.96)}
+      23.000% {opacity:1;transform:translateY(-4px) scale(1.015)}
+      27.667% {opacity:1;transform:translateY(0px) scale(1)}
+      30.333%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #ji-dakuten {transform-box:fill-box; transform-origin:center; animation:gm-dakuten 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-dakuten {
+      0%,22.333% {opacity:0; transform:translateY(22px) scale(.25) rotate(-24deg)}
+      28.000% {opacity:1;transform:translateY(-7px) scale(1.13) rotate(7deg)}
+      32.667% {opacity:1;transform:translateY(2px) scale(.96) rotate(-3deg)}
+      35.333%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #motion-plus-small {transform-box:fill-box; transform-origin:center; animation:gm-plus-small 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-plus-small {
+      0%,20.833% {opacity:0; transform:translateY(22px) scale(.25) rotate(-24deg)}
+      26.500% {opacity:1;transform:translateY(-7px) scale(1.13) rotate(7deg)}
+      31.167% {opacity:1;transform:translateY(2px) scale(.96) rotate(-3deg)}
+      33.833%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #motion-plus-medium {transform-box:fill-box; transform-origin:center; animation:gm-plus-medium 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-plus-medium {
+      0%,23.833% {opacity:0; transform:translateY(22px) scale(.25) rotate(-24deg)}
+      29.500% {opacity:1;transform:translateY(-7px) scale(1.13) rotate(7deg)}
+      34.167% {opacity:1;transform:translateY(2px) scale(.96) rotate(-3deg)}
+      36.833%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+
+    #motion-plus-large {transform-box:fill-box; transform-origin:center; animation:gm-plus-large 6s cubic-bezier(.22,.7,.3,1) infinite;}
+    @keyframes gm-plus-large {
+      0%,26.833% {opacity:0; transform:translateY(22px) scale(.25) rotate(-24deg)}
+      32.500% {opacity:1;transform:translateY(-7px) scale(1.13) rotate(7deg)}
+      37.167% {opacity:1;transform:translateY(2px) scale(.96) rotate(-3deg)}
+      39.833%,90% {opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
+      98%,100% {opacity:0;transform:translateY(-5px) scale(1) rotate(0deg)}
+    }
+]]></style>
+  <defs>
+    <linearGradient id="orbit-gradient" gradientUnits="userSpaceOnUse" x1="105" y1="480" x2="870" y2="480">
+      <stop offset="0" stop-color="#009B66"/>
+      <stop offset="0.56" stop-color="#00A567"/>
+      <stop offset="0.88" stop-color="#ABD918"/>
+      <stop offset="1" stop-color="#BDDD18"/>
+    </linearGradient>
+    <linearGradient id="green-gradient" gradientUnits="userSpaceOnUse" x1="340" y1="345" x2="660" y2="685">
+      <stop offset="0" stop-color="#00B941"/>
+      <stop offset="1" stop-color="#00AF36"/>
+    </linearGradient>
+    <linearGradient id="teal-gradient" gradientUnits="userSpaceOnUse" x1="1020" y1="395" x2="1450" y2="710">
+      <stop offset="0" stop-color="#006650"/>
+      <stop offset="1" stop-color="#005D4B"/>
+    </linearGradient>
+    <linearGradient id="lime-gradient" gradientUnits="userSpaceOnUse" x1="1500" y1="325" x2="1570" y2="480">
+      <stop offset="0" stop-color="#B5DD17"/>
+      <stop offset="1" stop-color="#A6D619"/>
+    </linearGradient>
+    <linearGradient id="yellow-gradient" gradientUnits="userSpaceOnUse" x1="85" y1="215" x2="210" y2="430">
+      <stop offset="0" stop-color="#FFC919"/>
+      <stop offset="1" stop-color="#FFC20D"/>
+    </linearGradient>
+  </defs>
+  <g id="accent-pluses" inkscape:groupmode="layer" inkscape:label="01 黄色のプラス記号" fill="url(#yellow-gradient)">
+    <g id="motion-plus-large"><path id="plus-large" d="M-20.0000,-47.0000 Q-20.0000,-63.0000 -4.0000,-63.0000 L4.0000,-63.0000 Q20.0000,-63.0000 20.0000,-47.0000 L20.0000,-36.0000 Q20.0000,-20.0000 36.0000,-20.0000 L47.0000,-20.0000 Q63.0000,-20.0000 63.0000,-4.0000 L63.0000,4.0000 Q63.0000,20.0000 47.0000,20.0000 L36.0000,20.0000 Q20.0000,20.0000 20.0000,36.0000 L20.0000,47.0000 Q20.0000,63.0000 4.0000,63.0000 L-4.0000,63.0000 Q-20.0000,63.0000 -20.0000,47.0000 L-20.0000,36.0000 Q-20.0000,20.0000 -36.0000,20.0000 L-47.0000,20.0000 Q-63.0000,20.0000 -63.0000,4.0000 L-63.0000,-4.0000 Q-63.0000,-20.0000 -47.0000,-20.0000 L-36.0000,-20.0000 Q-20.0000,-20.0000 -20.0000,-36.0000 Z" transform="translate(228 232) rotate(-21)"/></g>
+    <g id="motion-plus-medium"><path id="plus-medium" d="M-19.0000,-36.0500 Q-19.0000,-50.0000 -5.0500,-50.0000 L5.0500,-50.0000 Q19.0000,-50.0000 19.0000,-36.0500 L19.0000,-32.9500 Q19.0000,-19.0000 32.9500,-19.0000 L36.0500,-19.0000 Q50.0000,-19.0000 50.0000,-5.0500 L50.0000,5.0500 Q50.0000,19.0000 36.0500,19.0000 L32.9500,19.0000 Q19.0000,19.0000 19.0000,32.9500 L19.0000,36.0500 Q19.0000,50.0000 5.0500,50.0000 L-5.0500,50.0000 Q-19.0000,50.0000 -19.0000,36.0500 L-19.0000,32.9500 Q-19.0000,19.0000 -32.9500,19.0000 L-36.0500,19.0000 Q-50.0000,19.0000 -50.0000,5.0500 L-50.0000,-5.0500 Q-50.0000,-19.0000 -36.0500,-19.0000 L-32.9500,-19.0000 Q-19.0000,-19.0000 -19.0000,-32.9500 Z" transform="translate(121 316) rotate(35)"/></g>
+    <g id="motion-plus-small"><path id="plus-small" d="M-19.0000,-32.2000 Q-19.0000,-43.0000 -8.2000,-43.0000 L8.2000,-43.0000 Q19.0000,-43.0000 19.0000,-32.2000 L19.0000,-29.8000 Q19.0000,-19.0000 29.8000,-19.0000 L32.2000,-19.0000 Q43.0000,-19.0000 43.0000,-8.2000 L43.0000,8.2000 Q43.0000,19.0000 32.2000,19.0000 L29.8000,19.0000 Q19.0000,19.0000 19.0000,29.8000 L19.0000,32.2000 Q19.0000,43.0000 8.2000,43.0000 L-8.2000,43.0000 Q-19.0000,43.0000 -19.0000,32.2000 L-19.0000,29.8000 Q-19.0000,19.0000 -29.8000,19.0000 L-32.2000,19.0000 Q-43.0000,19.0000 -43.0000,8.2000 L-43.0000,-8.2000 Q-43.0000,-19.0000 -32.2000,-19.0000 L-29.8000,-19.0000 Q-19.0000,-19.0000 -19.0000,-29.8000 Z" transform="translate(72 408) rotate(8)"/></g>
+  </g>
+  <g id="speech-orbit" inkscape:groupmode="layer" inkscape:label="02 吹き出しを囲む輪">
+    <path id="orbit" pathLength="1" d="M616,211 C465,202 259,278 154,401 C52,520 115,660 269,713 C398,759 563,734 698,686 L823,727 L770,638 C851,576 889,495 866,407 C839,298 737,247 622,256 C539,262.5 468,270 410,302" fill="none" stroke="url(#orbit-gradient)" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g id="glyph-gu" inkscape:groupmode="layer" inkscape:label="03 グ" fill="url(#green-gradient)">
+    <path id="gu-body" d="M298,370 H340 Q362,370 355,391 L349,408 H423 Q455,408 451,441 C440,543 365,624 266,663 Q248,670 236,654 L216,628 Q204,612 223,603 C298,570 350,524 374,475 H306 C279,507 251,533 213,553 Q198,561 187,547 L166,520 Q154,504 172,492 C217,462 252,428 275,386 Q283,370 298,370 Z"/>
+    <path id="gu-dakuten-left" d="M456,340 H490 Q506,340 506,356 V422 Q506,438 490,438 H456 Q440,438 440,422 V356 Q440,340 456,340 Z" transform="rotate(-22 473 389)"/>
+    <path id="gu-dakuten-right" d="M526,316 H560 Q576,316 576,332 V398 Q576,414 560,414 H526 Q510,414 510,398 V332 Q510,316 526,316 Z" transform="rotate(-22 543 365)"/>
+  </g>
+  <g id="glyph-ru" inkscape:groupmode="layer" inkscape:label="04 ル" fill="url(#green-gradient)">
+    <path id="ru-left" d="M525,433 H566 Q587,433 586,455 C583,553 552,627 486,676 Q473,686 461,673 L433,644 Q420,631 434,618 C481,577 502,527 502,456 Q502,433 525,433 Z"/>
+    <path id="ru-right" d="M622,392 H665 Q686,392 686,413 V570 C710,554 730,535 750,514 Q765,498 780,513 L805,538 Q820,553 805,568 C758,617 704,651 641,671 Q621,677 609,663 Q601,654 601,639 V413 Q601,392 622,392 Z"/>
+  </g>
+  <g id="glyph-mo" inkscape:groupmode="layer" inkscape:label="05 モ" fill="url(#teal-gradient)">
+    <path id="mo-body" d="M920,398 H1172 Q1193,398 1193,419 V452 Q1193,473 1172,473 H1045 V499 H1180 Q1201,499 1201,520 V553 Q1201,574 1180,574 H1045 V600 Q1045,615 1060,615 H1193 Q1214,615 1214,636 V670 Q1214,691 1193,691 H1022 Q959,691 959,628 V574 H913 Q892,574 892,553 V520 Q892,499 913,499 H959 V473 H920 Q899,473 899,452 V419 Q899,398 920,398 Z"/>
+  </g>
+  <g id="glyph-ji" inkscape:groupmode="layer" inkscape:label="06 ジ">
+    <g id="ji-body" fill="url(#teal-gradient)">
+      <path id="ji-top" d="M1266,428 H1394 Q1411,428 1411,445 V481 Q1411,498 1394,498 H1266 Q1249,498 1249,481 V445 Q1249,428 1266,428 Z" transform="rotate(11 1330 463)"/>
+      <path id="ji-middle" d="M1249,513 H1373 Q1390,513 1390,530 V566 Q1390,583 1373,583 H1249 Q1232,583 1232,566 V530 Q1232,513 1249,513 Z" transform="rotate(11 1311 548)"/>
+      <path id="ji-sweep" d="M1502,474 L1546,493 Q1565,501 1558,521 C1524,632 1432,701 1266,707 Q1245,708 1245,687 V646 Q1245,625 1266,624 C1389,621 1453,573 1480,488 Q1486,468 1502,474 Z"/>
+    </g>
+    <g id="ji-dakuten" fill="url(#lime-gradient)">
+      <path id="ji-dakuten-left" d="M1485,326 H1517 Q1532,326 1532,341 V427 Q1532,442 1517,442 H1485 Q1470,442 1470,427 V341 Q1470,326 1485,326 Z" transform="rotate(31 1501 384)"/>
+      <path id="ji-dakuten-right" d="M1554,367 H1586 Q1601,367 1601,382 V468 Q1601,483 1586,483 H1554 Q1539,483 1539,468 V382 Q1539,367 1554,367 Z" transform="rotate(31 1570 425)"/>
+    </g>
+  </g>
+</svg>

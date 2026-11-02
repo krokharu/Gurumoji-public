@@ -1,9 +1,25 @@
     <section id="create-view" class="view create-view" data-conversation-mode="meeting" role="tabpanel" aria-labelledby="show-new-button">
+      <aside class="create-sidebar" aria-label="詳細設定">
+        <span class="create-sidebar-title">詳細設定</span>
+        <nav class="create-sidebar-nav">
+          <button type="button" data-side-drawer>一般</button>
+          <button type="button" data-open-panel="recognition">文字起こし</button>
+          <button type="button" data-open-panel="recognition" data-side-scroll="#diarization-device">話者分離</button>
+          <button type="button" data-open-panel="recognition" data-side-scroll="[name=audio_preprocess]">音声処理</button>
+          <button type="button" data-open-panel="output">出力形式</button>
+          <button type="button" data-side-focus="#stitch-output-dir">保存先</button>
+          <button type="button" data-open-general-settings>表示・通常設定</button>
+          <button type="button" data-open-connection>接続</button>
+        </nav>
+        <span class="create-sidebar-version">バージョン {{ app_version }}</span>
+      </aside>
+      <div id="stitch-backdrop" class="stitch-backdrop stitch-only" hidden></div>
       <section id="progress-card" class="progress-card" hidden aria-live="polite">
         <div class="progress-topline">
           <div><p class="view-kicker">処理状況</p><h2 id="progress-title">文字起こし中</h2></div>
           <strong id="progress-number">0%</strong>
         </div>
+        <p id="queue-progress" class="progress-queue" role="status" hidden></p>
         <div class="progress-overall-heading"><span>全体の進捗</span><small>OVERALL PROGRESS</small></div>
         <div id="progress-overall-track" class="progress-track" role="progressbar" aria-label="文字起こし全体の進捗" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-bar"></div></div>
         <div class="current-process-panel">
@@ -113,38 +129,130 @@
           </li>
         </ol>
 
+        <!-- Stitch dashboard (desktop only). Every control here proxies an existing form field; see create-dashboard.js. -->
+        <div class="stitch-topbar stitch-only">
+          <button id="stitch-pick-file" class="stitch-pick" type="button"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/04-video-import.svg') }}" alt="" aria-hidden="true"><span>ファイル選択</span></button>
+          <div class="stitch-count">処理対象: <b id="stitch-target-count">0</b> 件</div>
+          <label class="stitch-preset"><span class="visually-hidden">プリセット</span><select id="stitch-preset"></select></label>
+          <label class="stitch-preset-name"><span class="visually-hidden">プリセット名</span><input id="stitch-preset-name" type="text" maxlength="60" placeholder="プリセット名を入力（保存用）" autocomplete="off"></label>
+          <button id="stitch-preset-save" class="stitch-soft" type="button">保存</button>
+          <button id="stitch-preset-delete" class="stitch-soft" type="button" hidden>削除</button>
+        </div>
+
+        <section class="stitch-card stitch-speakers stitch-only" aria-labelledby="stitch-speakers-title">
+          <header class="stitch-card-head"><h2 id="stitch-speakers-title"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/08-speaker-identification.svg') }}" alt="" aria-hidden="true">事前 話者情報</h2><span class="stitch-code">DIAR-AUTO</span></header>
+          <p class="stitch-sub">話者推定モードと人数制限</p>
+          <div class="stitch-seg-row">
+            <div class="stitch-seg" role="radiogroup" aria-label="話者数の指定方法">
+              <button type="button" role="radio" aria-checked="true" data-speaker-mode="max">最大</button>
+              <button type="button" role="radio" aria-checked="false" data-speaker-mode="min">最小</button>
+              <button type="button" role="radio" aria-checked="false" data-speaker-mode="fixed">固定</button>
+            </div>
+            <label class="stitch-number"><input id="stitch-speaker-count" type="number" min="1" max="20" step="1" placeholder="—" aria-label="話者数"><span>人</span></label>
+          </div>
+          <div class="stitch-people-add">
+            <input id="stitch-person-name" type="text" maxlength="40" placeholder="参加者の名前" autocomplete="off" aria-label="参加者の名前">
+            <input id="stitch-person-role" type="text" maxlength="40" placeholder="役割（任意）" autocomplete="off" aria-label="参加者の役割">
+            <button id="stitch-person-add" type="button" aria-label="参加者を追加">＋</button>
+          </div>
+          <div id="stitch-people" class="stitch-people" aria-live="polite"></div>
+          <p id="stitch-people-note" class="stitch-sub"></p>
+          <div class="stitch-btn-row"><button id="stitch-people-registry" type="button" class="stitch-soft" aria-haspopup="listbox">内部選択</button><button id="stitch-people-file" type="button" class="stitch-soft">ファイル選択</button><div id="stitch-registry-picker" class="stitch-picker" role="listbox" aria-label="話者管理から参加者を選ぶ" hidden></div></div>
+          <input id="stitch-people-file-input" class="visually-hidden" type="file" accept=".csv,.txt,text/plain,text/csv" tabindex="-1">
+          <input id="stitch-prior-speakers" type="hidden" name="prior_speakers" value="[]">
+          <label class="stitch-toggle-row"><span>話者自動登録</span><span class="stitch-switch"><input id="stitch-auto-register" type="checkbox"><i></i></span></label>
+        </section>
+
+        <section class="stitch-card stitch-vocab stitch-only" aria-labelledby="stitch-vocab-title">
+          <header class="stitch-card-head"><h2 id="stitch-vocab-title"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/073-keyword.svg') }}" alt="" aria-hidden="true">単語登録</h2>
+            <label class="stitch-toggle-inline"><span id="stitch-vocab-state">有効</span><span class="stitch-switch"><input type="hidden" name="use_custom_vocabulary" value="0"><input id="stitch-vocab-enabled" name="use_custom_vocabulary" type="checkbox" value="1" checked><i></i></span></label>
+          </header>
+          <div class="stitch-add"><input id="stitch-vocab-input" type="text" maxlength="80" placeholder="単語を入力して Enter で追加" autocomplete="off" aria-label="登録する単語"><button id="stitch-vocab-add" type="button" aria-label="単語を追加">＋</button></div>
+          <div class="stitch-vocab-presets">
+            <select id="stitch-vocab-preset" aria-label="単語プリセットを選択"></select>
+            <button id="stitch-vocab-preset-delete" type="button" class="stitch-soft" aria-label="選択中の単語プリセットを削除" hidden>削除</button>
+            <input id="stitch-vocab-preset-name" type="text" maxlength="40" placeholder="プリセット名（保存用）" autocomplete="off" aria-label="単語プリセット名">
+            <button id="stitch-vocab-preset-save" type="button" class="stitch-soft">保存</button>
+          </div>
+          <div id="stitch-vocab-chips" class="stitch-chips" aria-live="polite"></div>
+          <p id="stitch-vocab-note" class="stitch-sub"></p>
+          <div class="stitch-btn-row"><button id="stitch-vocab-file" type="button" class="stitch-soft">ファイル選択</button><button id="stitch-vocab-clear" type="button" class="stitch-soft">すべて削除</button></div>
+          <input id="stitch-vocab-file-input" class="visually-hidden" type="file" accept=".txt,.csv,text/plain,text/csv" tabindex="-1">
+        </section>
+
+        <section class="stitch-card stitch-outline stitch-only" aria-labelledby="stitch-outline-title">
+          <header class="stitch-card-head"><h2 id="stitch-outline-title"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/15-outline.svg') }}" alt="" aria-hidden="true">事前アウトライン</h2><span class="stitch-code">ASR-HINT</span></header>
+          <p class="stitch-sub">アジェンダ・進行項目・コンテキスト</p>
+          <textarea id="stitch-outline-text" class="stitch-outline-text" name="prior_outline" maxlength="4000" placeholder="台本や議事アジェンダを貼り付け（例：議題1 「第3四半期の売上」／Kubernetes移行の進め方）" spellcheck="false" aria-label="事前アウトライン"></textarea>
+          <p id="stitch-outline-note" class="stitch-sub"></p>
+          <div class="stitch-btn-row"><button id="stitch-outline-file" type="button" class="stitch-soft">ファイル選択</button><button id="stitch-outline-clear" type="button" class="stitch-soft">クリア</button></div>
+          <input id="stitch-outline-file-input" class="visually-hidden" type="file" accept=".txt,.md,text/plain,text/markdown" tabindex="-1">
+          <label class="stitch-toggle-row"><span>事前アウトラインを活用</span><span class="stitch-switch"><input type="hidden" name="use_prior_outline" value="0"><input id="stitch-outline-enabled" name="use_prior_outline" type="checkbox" value="1" checked><i></i></span></label>
+        </section>
+
+        <section class="stitch-card stitch-meta stitch-only" aria-labelledby="stitch-meta-title">
+          <p id="stitch-meta-title" class="stitch-sub stitch-meta-heading"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/078-category.svg') }}" alt="" aria-hidden="true">ソートデータ設定</p>
+          <div class="stitch-meta-grid">
+            <div class="stitch-subcard">
+              <div class="stitch-subhead"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/14-labels.svg') }}" alt="" aria-hidden="true">タグ</span></div>
+              <input id="stitch-tag-input" type="text" list="stitch-tag-list" maxlength="80" autocomplete="off" placeholder="タグ名を入力（既存は候補から選択）" aria-label="タグ">
+              <datalist id="stitch-tag-list"></datalist>
+            </div>
+            <div class="stitch-subcard">
+              <div class="stitch-subhead"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/109-project.svg') }}" alt="" aria-hidden="true">グループ</span></div>
+              <input id="stitch-group-input" type="text" list="stitch-group-list" maxlength="80" autocomplete="off" placeholder="グループ名を入力（既存は候補から選択）" aria-label="グループ（フォルダー）">
+              <datalist id="stitch-group-list"></datalist>
+            </div>
+          </div>
+          <p id="stitch-meta-note" class="stitch-sub"></p>
+        </section>
+
+
         <!-- ステップ1：ファイル -->
         <section id="setup-source" class="flow-section upload-section mobile-active" data-flow-section="1">
           <div class="section-heading">
             <span class="step">1</span>
             <div>
-              <h2>処理するファイルを選ぶ</h2>
+              <h2><span class="mobile-title">処理するファイルを選ぶ</span><span class="desktop-title stitch-only"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/04-video-import.svg') }}" alt="" aria-hidden="true">動画ファイル設定</span><span id="stitch-video-state" class="stitch-lamp-text stitch-only">未登録</span></h2>
               <p>閲覧端末から{{ runtime.label }}へアップロードするか、実行環境内のパスを指定します</p>
             </div>
           </div>
+          <div class="stitch-video-meta stitch-only"><span id="stitch-video-name" class="name" role="status">ファイルが選択されていません</span><span>更新日: <b id="stitch-video-date">—</b></span><span>総時間: <b id="stitch-video-duration">—:—:—</b></span></div>
           <div id="file-drop-zone" class="file-drop-zone" tabindex="0" role="button" aria-label="音声または動画ファイルを選択">
-            <input id="input-file" class="visually-hidden" name="input_file" type="file" accept=".mp4,.m4v,.mov,.mkv,.wav,.mp3,.m4a,.flac">
+            <input id="input-file" class="visually-hidden" name="input_file" type="file" multiple accept=".mp4,.m4v,.mov,.mkv,.wav,.mp3,.m4a,.flac">
             <div class="drop-zone-icon" aria-hidden="true">＋</div>
             <div class="drop-zone-copy">
-              <strong>動画・音声をここにドロップ</strong>
+              <strong>動画・音声をここにドロップ（複数可）</strong>
               <span class="desktop-only">ここへドラッグ＆ドロップ、またはボタンから選択</span>
               <span class="mobile-only">端末から音声・動画を選択</span>
               <small>MP4 / MOV / MKV / WAV / MP3 / M4A / FLAC</small>
             </div>
             <button id="browse-path-button" class="secondary-button browse-button" type="button" data-picker-mode="{{ 'native' if runtime.native_file_dialog else 'browser' }}">{{ 'ファイルを選択' if runtime.native_file_dialog else '端末からアップロード' }}</button>
+            <div id="source-preview" class="source-preview" hidden>
+              <div class="source-preview-frame">
+                <img id="source-thumbnail" alt="選択した動画のサムネイル" hidden>
+              </div>
+              <div class="source-preview-body">
+                <span>動画サムネイル</span>
+                <p id="source-preview-message">サムネイルを作成しています…</p>
+              </div>
+            </div>
+          </div>
+          <div id="stitch-video-frame" class="stitch-video-frame stitch-only" hidden><video id="stitch-video" controls preload="metadata"></video></div>
+          <div id="source-queue" class="source-queue" hidden>
+            <div class="source-queue-head">
+              <strong id="source-queue-title">登録ファイル</strong>
+              <span class="source-queue-actions">
+                <button id="source-queue-add" class="source-queue-link" type="button">ファイルを追加</button>
+                <button id="source-queue-clear" class="source-queue-link" type="button">すべて解除</button>
+              </span>
+            </div>
+            <ul id="source-queue-list" class="source-queue-list"></ul>
+            <p id="source-queue-note" class="source-queue-note" role="status"></p>
           </div>
           <div class="selected-file-label">選択したファイル</div>
           <div id="path-detail" class="path-detail file-selection-status" role="status">ファイルが選択されていません</div>
           <div id="path-error" class="alert error" role="alert" hidden></div>
-          <div id="source-preview" class="source-preview" hidden>
-            <div class="source-preview-frame">
-              <img id="source-thumbnail" alt="選択した動画のサムネイル" hidden>
-            </div>
-            <div class="source-preview-body">
-              <span>動画サムネイル</span>
-              <p id="source-preview-message">サムネイルを作成しています…</p>
-            </div>
-          </div>
           <details class="advanced-settings source-advanced">
             <summary>
               <span>パスと保存先を指定</span>
@@ -168,6 +276,7 @@
 
         <!-- ステップ2：設定（会話モード＋設定の要約。詳細は閉じた折りたたみから開く） -->
         <section id="setup-settings" class="flow-section" data-flow-section="2">
+          <button id="stitch-settings-close" class="stitch-drawer-close stitch-only" type="button" aria-label="詳細設定を閉じる">×</button>
           <div class="section-heading">
             <span class="step">2</span>
             <div>
@@ -225,7 +334,7 @@
             </button>
             <button type="button" class="settings-summary-row settings-summary-feature" data-open-panel="finishing" data-active="false">
               <span class="settings-summary-label">AI仕上げ</span>
-              <strong class="settings-choice" data-settings-value="finishing"><span class="settings-choice-main"><span class="settings-choice-badge is-off" data-choice-finishing-state>しない</span><span data-choice-finishing-model>使用モデルなし</span></span><small data-choice-finishing-detail>Obsidianに保存してあとで整える</small></strong>
+              <strong class="settings-choice" data-settings-value="finishing"><span class="settings-choice-main"><span class="settings-choice-badge is-off" data-choice-finishing-state>しない</span><span data-choice-finishing-model>使用モデルなし</span></span><small data-choice-finishing-detail>AI仕上げを使わない</small></strong>
               <em>変更</em>
             </button>
             <button type="button" class="settings-summary-row" data-open-panel="emotion">
@@ -256,8 +365,10 @@
                     <select id="transcription-backend" name="transcription_backend">
                       <option value="whisperx" selected>WhisperX&#65288;&#27161;&#28310;&#65289;</option>
                       <option value="qwen3_nemotron">Qwen3-ASR + Qwen3 ForcedAligner + Nemotron 3 Diarization</option>
+                      <option value="haas_ja">Haas-ja v1.0 &#65288;&#20844;&#24335;&#12539;&#23455;&#38483;&#30340;&#65289; + Nemotron 3 Diarization</option>
                     </select>
                     <small id="qwen-backend-note" hidden>{{ runtime.qwen_setup_note }}</small>
+                    <small id="haas-backend-note" hidden>{{ runtime.haas_setup_note }}</small>
                   </label>
                   <label class="field">
                     <span>認識モデル</span>
@@ -286,7 +397,9 @@
                       <option value="light">軽め — 音量調整と低域カット</option>
                       <option value="standard" selected>おすすめ — ノイズ除去・音量調整・明瞭化</option>
                       <option value="strong">強め — 雑音が多い録音</option>
+                      <option value="reuse">NemotronLabs RE-USE — 高・実験的な音声強調</option>
                     </select>
+                    <small>RE-USEはNVIDIA GPUの専用環境が必要です。声が重なると主話者以外の発話を抑える場合があります。</small>
                   </label>
                 </div>
                 <div class="quiet-voice-box">
@@ -401,11 +514,13 @@
                   <p id="finishing-mode-hint" class="conversation-mode-hint">AIで整える場合は、使用するサービスとモデルを確認してください。</p>
                 </fieldset>
                 <div class="ai-box">
+                  {% if obsidian_enabled %}
                   <label class="check-row obsidian-mode">
                     <input name="finish_in_obsidian" type="hidden" value="0">
                     <input id="finish-in-obsidian" name="finish_in_obsidian" type="checkbox" value="1" checked>
                     <span><strong>Obsidianに保存してあとで整える</strong><small>文字起こし全文と作業ノートを保存します。文章の仕上げは後から行えます。</small></span>
                   </label>
+                  {% endif %}
                   <label class="field provider-field">
                     <span>AI仕上げに使うサービス</span>
                     <select id="ai-provider" name="ai_provider">
@@ -501,6 +616,22 @@
               </div>
             </div>
           </div>
+          <div class="stitch-run stitch-only">
+            <div class="stitch-run-head">
+              <h2><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/30-settings.svg') }}" alt="" aria-hidden="true">実行設定</h2>
+              <span id="stitch-run-status" class="stitch-run-status" role="status"></span><span class="stitch-legend">強度指標: <b class="lv-high">高</b><b class="lv-mid">中</b><b class="lv-low">低</b><b class="lv-none">無</b><em>（押すと切替）</em></span>
+            </div>
+            <label class="stitch-output-row"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/111-project-open.svg') }}" alt="" aria-hidden="true"><span class="visually-hidden">保存先フォルダー</span><input id="stitch-output-dir" type="text" autocomplete="off" placeholder="既定の output フォルダー"></label>
+            <div class="stitch-tiles">
+              <div class="stitch-tile"><button type="button" class="stitch-tile-main" data-tile="finishing"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/06-transcript-edit.svg') }}" alt="" aria-hidden="true">AI仕上げ</span><b class="lv" data-lv></b></button><button type="button" class="stitch-tile-more" data-open-panel="finishing" aria-label="AI仕上げの詳細設定">⋯</button></div>
+              <div class="stitch-tile"><button type="button" class="stitch-tile-main" data-tile="volume"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/036-volume.svg') }}" alt="" aria-hidden="true">音量調節</span><b class="lv" data-lv></b></button><button type="button" class="stitch-tile-more" data-open-panel="recognition" aria-label="音声前処理の詳細設定">⋯</button></div>
+              <div class="stitch-tile"><button type="button" class="stitch-tile-main" data-tile="model"><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/125-agent-status.svg') }}" alt="" aria-hidden="true">モデル</span><b class="lv" data-lv></b></button><button type="button" class="stitch-tile-more" data-open-panel="recognition" aria-label="認識モデルの詳細設定">⋯</button></div>
+              <div class="stitch-tile stitch-tile-toggle"><label><span class="gm-label"><img class="gm-icon" src="{{ url_for('static', filename='icons/dark/20-emotion.svg') }}" alt="" aria-hidden="true">感情解析</span><span class="stitch-switch"><input id="stitch-emotion" type="checkbox"><i></i></span></label><button type="button" class="stitch-tile-more" data-open-panel="emotion" aria-label="感情解析の詳細設定">⋯</button></div>
+              <button id="stitch-confirm-toggle" class="stitch-confirm-toggle" type="button" aria-expanded="false" aria-controls="setup-launch"><span>確認</span><i aria-hidden="true"></i></button>
+              <button id="stitch-run-button" class="stitch-execute" type="button"><img class="gm-icon" src="{{ url_for('static', filename='icons/light/031-play.svg') }}" alt="" aria-hidden="true"><span>実行</span></button>
+            </div>
+          </div>
+          <div class="stitch-confirm">
           <div id="setup-readiness-details" class="alert" role="status" aria-live="polite"></div>
           <label id="model-readiness-ack-row" class="check-row" hidden><input id="model-readiness-ack" type="checkbox"><span>未取得・未確認のモデルは開始時に取得や接続確認が必要となり、利用許諾・権限・回線によって開始後に失敗する場合があることを確認しました</span></label>
           <div class="launch-check-actions">
@@ -509,8 +640,7 @@
           </div>
           <section class="launch-destinations" aria-label="テキスト送信先の最終確認">
             <strong data-text-destinations>今回のテキスト送信先: 確認中</strong>
-            <p id="deferred-destination-note" hidden>Obsidianの後処理は別途実行します。後処理のAI選択と追加のTypeSafe送信を実行前に確認してください。</p>
-            <button class="secondary-button" type="button" data-open-panel="finishing">送信先・Jev比較を変更</button>
+            {% if obsidian_enabled %}<p id="deferred-destination-note" hidden>Obsidianの後処理は別途実行します。後処理のAI選択と追加のTypeSafe送信を実行前に確認してください。</p>{% endif %}
           </section>
           <div class="launch-mobile-review mobile-only" aria-label="開始前の確認">
             <div><span>入力ファイル</span><strong data-review-source>未選択</strong></div>
@@ -546,6 +676,7 @@
             </button>
              </div>
            </details>
+          </div>
           <div id="form-error" class="alert error" role="alert" hidden></div>
            <div class="launch-bar">
             <button id="start-button" class="primary-button launch-button" type="submit" disabled>
