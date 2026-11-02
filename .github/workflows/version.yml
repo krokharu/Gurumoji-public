@@ -1,4 +1,4 @@
-name: version
+name: 公開版の検査と版管理
 
 # public/releaseへのpushで版を自動で上げ、タグを打つ。
 #   feat: を含む       -> 通常アップデート（β0.46.1 -> β0.47.0）
