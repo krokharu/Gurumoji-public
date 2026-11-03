@@ -215,23 +215,25 @@ class RuntimeMonitor:
 def start_runtime_monitor(python, repo_dir, *, interval=2):
     from IPython.display import HTML, display
 
-    handle = display(HTML("<p>ランタイムモニターを準備しています。</p>"), display_id=True)
-    if handle is None:
-        raise ColabSetupError("MONITOR_DISPLAY", "Colabの画面に接続してモニターのセルを実行してください。")
-    monitor = RuntimeMonitor(python, repo_dir, lambda content: handle.update(HTML(content)), interval=interval)
     try:
-        from ipywidgets import Button
-        button = Button(description="モニターを停止", icon="stop")
-
-        def stop_clicked(_):
-            monitor.stop()
-            button.disabled = True
-            button.description = "停止済み"
-
-        button.on_click(stop_clicked)
-        display(button)
+        from ipywidgets import HTML as WidgetHTML, Button, VBox
     except ImportError:
-        pass
+        handle = display(HTML("<p>ランタイムモニターを準備しています。</p>"), display_id=True)
+        if handle is None:
+            raise ColabSetupError("MONITOR_DISPLAY", "Colabの画面に接続してモニターのセルを実行してください。")
+        return RuntimeMonitor(python, repo_dir, lambda content: handle.update(HTML(content)), interval=interval).start()
+    # Colab標準のウィジェット値を更新し、セル終了後も同じ表示へ反映する。
+    canvas = WidgetHTML(value="")
+    monitor = RuntimeMonitor(python, repo_dir, lambda content: setattr(canvas, "value", content), interval=interval)
+    button = Button(description="モニターを停止", icon="stop")
+
+    def stop_clicked(_):
+        monitor.stop()
+        button.disabled = True
+        button.description = "停止済み"
+
+    button.on_click(stop_clicked)
+    display(VBox([canvas, button]))
     return monitor.start()
 
 
