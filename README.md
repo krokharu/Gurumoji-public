@@ -6,7 +6,7 @@
 
 会議やインタビューの録音を取り込み、文字起こしと話者分離を行います。結果を元の音声・動画と照合しながら編集し、TXT・JSON・SRTへ書き出せます。Windowsでは自分のPC上で、Google ColabではColabのランタイム上で利用できます。
 
-バージョンはβ0.47.1です。認識結果やAIによる修正・話者名候補は、元の録音と照合して確認してください。
+バージョンはβ0.47.2です。認識結果やAIによる修正・話者名候補は、元の録音と照合して確認してください。
 
 [配布版をダウンロード](https://github.com/krokharu/Gurumoji-public/archive/refs/heads/public/release.zip) · [利用開始ガイド](docs/GETTING_STARTED.md) · [Google Colabで開く](https://colab.research.google.com/github/krokharu/Gurumoji-public/blob/public%2Frelease/notebooks/Gurumoji_Colab.ipynb)
 
