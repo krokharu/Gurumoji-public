@@ -58,11 +58,15 @@ def configure_speechbrain_lazy_import_compatibility() -> None:
 
 
 def diarization_access_error_message(model_name: str) -> str:
-    repo_lines = "\n".join(f"https://huggingface.co/{repo_id}" for repo_id in DIARIZATION_ACCESS_REPOS)
+    repo_lines = "\n".join(f"https://huggingface.co/{repo_id}" for repo_id in dict.fromkeys(DIARIZATION_ACCESS_REPOS))
+    token_hint = "tokens.json の Hugging Face read token を確認し、"
+    if os.environ.get("MOJIOKOSI_RUNTIME", "").strip().casefold() == "colab" or "COLAB_RELEASE_TAG" in os.environ:
+        token_hint = "Colab左側の鍵アイコンでHF_TOKENと「ノートブックからのアクセス」を確認し、セル2を再実行してアプリを起動し直してください。"
     return (
         f"話者分離モデル {model_name} にアクセスできません。\n\n"
-        "tokens.json の Hugging Face read token を確認し、以下のモデルページで"
-        f"利用規約への同意を完了してください。\n\n{repo_lines}"
+        f"{token_hint}以下のモデルページで利用規約への同意を完了してください。"
+        "同意したアカウントのread tokenを使用し、fine-grained tokenでは対象モデルの読取権限も確認してください。"
+        f"\nトークンの作成: https://huggingface.co/settings/tokens\n\n{repo_lines}"
     )
 
 

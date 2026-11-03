@@ -68,6 +68,42 @@ Windowsの起動ログは `runtime/logs/startup-*.log` に保存されます。�
 
 ランタイム上の処理やモデルが実行中の場合、取得処理は更新を拒否します。保存状態を確認し、ノートブックの終了セルで停止してから更新してください。
 
+### 左側のシークレットにキーを設定する
+
+Colab左側の鍵アイコンを開き、「新しいシークレットを追加」で次の名前と値を登録し、「ノートブックからのアクセス」をONにします。キーをコードへ貼り付ける必要はありません。
+
+| 名前 | 用途・取得先 |
+| --- | --- |
+| `HF_TOKEN` | 話者分離に必要。[Hugging Faceでread tokenを作成](https://huggingface.co/settings/tokens) |
+| `OPENAI_API_KEY` | OpenAIを使う場合だけ。[APIキーの設定](https://platform.openai.com/api-keys) |
+| `GOOGLE_API_KEY` | Geminiを使う場合だけ。[Google AI Studioで発行](https://aistudio.google.com/apikey) |
+| `TYPESAFE_API_KEY` | TypeSafe / JEVの校正を使う場合だけ。利用中のサービスで発行したキー |
+
+`HUGGINGFACE_TOKEN`、`GEMINI_API_KEY` も別名として使えます。任意のキーは未登録で進められます。既定ではシークレットの値を優先し、未登録の項目はこのランタイムの既存設定を保持します。キーの変更後はセル2を再実行し、アプリも停止・起動し直します。登録を削除するだけではランタイム内の既存設定は消えないため、利用を止める場合は提供元でキーを失効させ、ランタイムを作り直してください。シークレットが利用できない場合は、セル2の `MANUAL_TOKEN_INPUT` をONにして非表示の手入力を使えます。
+
+Hugging Faceは、[既定の話者モデルの利用条件](https://huggingface.co/pyannote/speaker-diarization-community-1)に同意したアカウントのread tokenを使います。[fine-grained tokenの説明](https://huggingface.co/docs/hub/security-tokens)も参照し、対象モデルを読み取れる権限を設定してください。旧モデルを使う場合は [speaker-diarization-3.1](https://huggingface.co/pyannote/speaker-diarization-3.1) と [segmentation-3.0](https://huggingface.co/pyannote/segmentation-3.0) の利用条件も確認します。
+
+セル2はHugging Faceの認証と既定モデルへのアクセスを事前確認します。モデル重みのダウンロードや推論は行いません。`CHECK_HF_ACCESS` をOFFにすると事前確認を省略できますが、権限の問題は解決されません。外部AIのキーは読込状態だけを表示し、有効性・残高・利用可能なモデルは実行時に確認されます。
+
+### エラーの分類と対処
+
+| 表示・分類 | 確認すること |
+| --- | --- |
+| `SECRET_MISSING` / `SECRET_ACCESS` | 左側の名前・値・ノートブックからのアクセスを確認しセル2を再実行 |
+| `SECRET_TIMEOUT` / `SECRET_READ` | Colabの画面との接続とシークレットの設定を確認 |
+| `TOKEN_FILE` / `TOKEN_WRITE` | 設定を保全し、JSON形式・書込権限・空き容量を確認 |
+| 401 / `AUTH_401` | キーの誤入力・失効を確認し、左側の値を更新してセル2とアプリを再起動 |
+| 403 / `PERMISSION_403` | モデルの同意アカウント、トークン権限、APIのプロジェクトと提供地域を確認 |
+| 400・404 / `REQUEST_400`・`MODEL_404` | モデル名・URL・要求形式・アクセス権を確認 |
+| 429 / `LIMIT_429` | 回数制限なら待機。残高・利用枠不足なら提供元の利用状況・課金設定を確認 |
+| `NETWORK` / `TLS` / `TIMEOUT` / `SERVICE_5XX` | 通信・証明書・提供元の稼働状況を確認 |
+| `ENVIRONMENT` / `DISK_FULL` | 直前のapt/pip出力・空き容量を確認 |
+| `GPU_RUNTIME` / `GPU_MEMORY` | GPU接続を確認し、小さいモデル・短いコンテキストを選ぶ |
+| `DRIVE` / `LOCAL_LLM` / `APP_START` | Driveの許可、Ollamaのモデル取得、先行セルの完了をそれぞれ確認 |
+| `HF_CHECK` / `HF_CHECK_FAILED` | 直前の認証・モデル利用条件の診断とモデルページを確認 |
+
+個別の対処はノートブックにも表示します。APIの詳細は [OpenAI公式のエラー説明](https://developers.openai.com/api/docs/guides/error-codes)・[Gemini公式のエラー説明](https://ai.google.dev/gemini-api/docs/api-errors) を参照してください。
+
 旧版の環境準備で `pip check` や依存関係の衝突が表示された場合は、必要な結果を保存してからColabのランタイムを削除・再接続し、最新版のノートブックを先頭から実行してください。Google Driveに保存していない一時ファイルは、ランタイムの削除で失われます。
 
 ## 追加の文字起こし・音声前処理

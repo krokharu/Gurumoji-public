@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -72,9 +73,9 @@ MAX_RETRY_AFTER_SECONDS = 30.0
 HTTP_STATUS_HINTS = {
     400: "要求の内容が受け付けられませんでした。モデル名や入力の長さを確認してください。",
     401: "APIキーが無効です。config/tokens.json を確認してください。",
-    403: "APIキーにこの操作の権限がありません。",
+    403: "APIキーの権限・プロジェクト・モデルへのアクセス権・提供地域を確認してください。",
     404: "モデルまたは接続先が見つかりません。モデル名を確認してください。",
-    429: "利用回数またはトークンの上限に達しています。時間をおいて再実行してください。",
+    429: "要求回数・利用枠の上限、または残高不足による制限です。回数制限は待って再実行し、残高・利用枠不足は提供元の利用状況や課金設定を確認してください。",
 }
 
 
@@ -88,6 +89,11 @@ class RetryableApiError(RuntimeError):
 
 def http_error_message(status_code: Any) -> str:
     hint = HTTP_STATUS_HINTS.get(status_code)
+    if status_code == 401 and (
+        os.environ.get("MOJIOKOSI_RUNTIME", "").strip().casefold() == "colab"
+        or "COLAB_RELEASE_TAG" in os.environ
+    ):
+        hint = "Colab左側のシークレットで対象のAPIキーを更新し、セル2を再実行してアプリを起動し直してください。キーの失効・権限も確認してください。"
     if hint is None and isinstance(status_code, int) and status_code >= 500:
         hint = "AI サービス側で一時的な障害が発生しています。"
     return f"API が HTTP {status_code} を返しました。" + (hint or "")
