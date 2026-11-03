@@ -70,7 +70,9 @@ Windowsの起動ログは `runtime/logs/startup-*.log` に保存されます。�
 
 ## 追加の文字起こし・音声前処理
 
-WhisperXに加え、Haas-ja v1.0による日本語文字起こしを実験的に選べます。NVIDIA GPUと専用環境が必要です。WindowsではWSL2のUbuntu 24.04を用意し、`scripts\setup_haas_ja.bat` を実行します。Linuxでは `bash scripts/setup_haas_ja.sh` を使います。話者分離にはNemotron 3を使用し、時刻は発話区間のおおよその位置です。
+画面下部の「モデル」から「Haas-ja-v1.0（公式・実験的） + Nemotron 3 Diarization」を選べます。詳細設定の「文字起こし方式」からも選択できます。Haasを選ぶと日本語・GPUに切り替わり、WhisperXへ戻すときは同じ「モデル」からtiny〜large-v3を選びます。
+
+Haas-ja-v1.0による日本語文字起こしは実験的な対応です。NVIDIA GPUと専用環境が必要です。WindowsではWSL2のUbuntu 24.04を用意し、`scripts\setup_haas_ja.bat` を実行します。Linuxでは `bash scripts/setup_haas_ja.sh` を使います。話者分離にはNemotron 3を使用し、時刻は発話区間のおおよその位置です。
 
 RE-USE音声前処理は `scripts\setup_reuse.bat`（Linuxは `bash scripts/setup_reuse.sh`）で専用環境を準備してから選びます。NVIDIA GPUを使用し、重なった声の一部を抑える場合があります。元の音声と比較して確認してください。準備が足りないときは画面に理由を表示します。
 
