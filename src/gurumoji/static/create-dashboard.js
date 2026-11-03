@@ -907,9 +907,21 @@
     },
     model: {
       title: '認識モデル',
-      options: () => [...modelName.options].map(option => [option.value, option.textContent, LEVEL_TEXT[modelLevel(option.value)]]),
-      current: () => modelName.value,
-      apply: value => setSelect(modelName, value)
+      options: () => [
+        ...[...modelName.options].map(option => [option.value, `WhisperX ${option.textContent}`, LEVEL_TEXT[modelLevel(option.value)]]),
+        ...[...transcriptionBackend.options].filter(option => option.value !== 'whisperx')
+          .map(option => [option.value, option.textContent, 'ASR'])
+      ],
+      current: () => transcriptionBackend.value === 'whisperx' ? modelName.value : transcriptionBackend.value,
+      apply: value => {
+        // 方式とモデルを同時に切り替え、詳細設定と送信する値も揃える。
+        if ([...modelName.options].some(option => option.value === value)) {
+          setSelect(transcriptionBackend, 'whisperx');
+          setSelect(modelName, value);
+        } else {
+          setSelect(transcriptionBackend, value);
+        }
+      }
     }
   };
   let openBubbleName = '';
@@ -993,10 +1005,11 @@
     if (autoRegister) { autoRegister.checked = detectNames.checked; autoRegister.disabled = detectNames.disabled; }
     paintTile('finishing', finishingLevel[selectedTranscriptFinishingMode()] || 'none', 'AI仕上げ: 高=全文を整える / 中=必要な箇所を整える / 無=しない');
     paintTile('volume', volumeLevel[audioPreprocess.value] || 'mid', `動画・音声前処理: ${selectedOptionText(audioPreprocess).split(' — ')[0]}`);
-    paintTile('model', modelLevel(modelName.value), `認識モデル: ${selectedOptionText(modelName).split(' — ')[0]}`);
-    const qwen = typeof transcriptionBackend !== 'undefined' && ['qwen3_nemotron', 'haas_ja'].includes(transcriptionBackend?.value);
-    const modelTile = tile('model');
-    if (modelTile) modelTile.disabled = qwen;
+    const externalModel = transcriptionBackend.value !== 'whisperx';
+    const modelLabel = externalModel ? selectedOptionText(transcriptionBackend) : `WhisperX ${selectedOptionText(modelName).split(' — ')[0]}`;
+    paintTile('model', externalModel ? 'none' : modelLevel(modelName.value), `認識モデル: ${modelLabel}`);
+    const modelBadge = tile('model')?.querySelector('[data-lv]');
+    if (externalModel && modelBadge) modelBadge.textContent = transcriptionBackend.value === 'haas_ja' ? 'Haas' : 'Qwen3';
     if (outputMain && outputDash) outputDash.placeholder = outputMain.placeholder || '既定の output フォルダー';
     renderVocab();
     renderOutline();
