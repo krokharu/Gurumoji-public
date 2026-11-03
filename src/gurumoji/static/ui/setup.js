@@ -476,7 +476,7 @@ function updateCreateSummary() {
   const haasSelected = transcriptionBackend?.value === 'haas_ja';
   const qwenSelected = transcriptionBackend?.value === 'qwen3_nemotron' || haasSelected;
   const model = haasSelected
-    ? 'Haas-ja v1.0（公式・実験的） + Nemotron 3'
+    ? 'Haas-ja-v1.0（公式・実験的） + Nemotron 3'
     : qwenSelected
     ? 'Qwen3-ASR + ForcedAligner + Nemotron 3'
     : (selectedOptionText(modelName).split(' \u2014 ')[0] || '\u81ea\u52d5');
