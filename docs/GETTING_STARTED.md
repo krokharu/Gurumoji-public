@@ -64,9 +64,11 @@ Windowsの起動ログは `runtime/logs/startup-*.log` に保存されます。�
 
 ## Colabを使う
 
-[Colabノートブック](https://colab.research.google.com/github/krokharu/Gurumoji-public/blob/public%2Frelease/notebooks/Gurumoji_Colab.ipynb) を上から順に実行します。GPU、モデルの利用条件、認証情報、Google Driveへの保存を各セルの案内に従って設定してください。Windowsの `.venv` は転用しません。
+[Colabノートブック](https://colab.research.google.com/github/krokharu/Gurumoji-public/blob/public%2Frelease/notebooks/Gurumoji_Colab.ipynb) を上から順に実行します。GPU、モデルの利用条件、認証情報、Google Driveへの保存を各セルの案内に従って設定してください。Windowsの `.venv` は転用しません。アプリ用の依存関係はColab標準のPython環境から分離して導入し、Web UIも専用環境のPythonで起動します。
 
 ランタイム上の処理やモデルが実行中の場合、取得処理は更新を拒否します。保存状態を確認し、ノートブックの終了セルで停止してから更新してください。
+
+旧版の環境準備で `pip check` や依存関係の衝突が表示された場合は、必要な結果を保存してからColabのランタイムを削除・再接続し、最新版のノートブックを先頭から実行してください。Google Driveに保存していない一時ファイルは、ランタイムの削除で失われます。
 
 ## 追加の文字起こし・音声前処理
 
