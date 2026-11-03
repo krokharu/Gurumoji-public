@@ -104,6 +104,26 @@ Hugging Faceは、[既定の話者モデルの利用条件](https://huggingface.
 
 個別の対処はノートブックにも表示します。APIの詳細は [OpenAI公式のエラー説明](https://developers.openai.com/api/docs/guides/error-codes)・[Gemini公式のエラー説明](https://ai.google.dev/gemini-api/docs/api-errors) を参照してください。
 
+### 仕上げ用LLMの自動選択・直接指定
+
+セル4の `LOCAL_LLM_MODEL` は `auto`（空欄も同じ）が既定です。現在の空きGPUメモリーと利用可能RAMから、音声処理用に4GiB以上のGPU余裕を残し、モデル・量子化・入力枠を選びます。目安は次のとおりです。
+
+| ランタイムの目安 | 自動選択の候補 | 入力枠 |
+| --- | --- | --- |
+| T4 16GB | Qwen3 4B Instruct・Q4_K_M | 32,768 |
+| L4 24GB | Qwen3 4B Instruct・Q8_0 | 32,768 |
+| A100 40GB | Qwen3 30B-A3B Instruct・Q4_K_M | 32,768 |
+| A100 / H100 80GB級 | Qwen3 30B-A3B Instruct・Q8_0 | 32,768 |
+| CPU・小容量環境 | Qwen2.5 1.5B〜3B Instruct | 32,768 |
+
+GPU名が同じでも、空き容量やRAMが少なければ軽いモデルを選びます。長い本文・アウトラインと生成結果に必要な枠を確保するため、自動では従来の32,768枠を維持します。複数GPUの容量は合算しません。選択理由と検出値をセル4に表示します。容量に基づく推奨であり、校正品質の実測順位や、すべての配置での動作保証ではありません。
+
+直接指定する場合は、同じ `LOCAL_LLM_MODEL` 欄へ `qwen3:4b-instruct`、`gemma3:4b`、`hf.co/組織/モデル:量子化タグ` など、Ollamaで取得できるローカルのテキストモデル名を入力します。従来の3候補への制限はありません。タグ省略時は `:latest` を補います。`LOCAL_LLM_CONTEXT_LENGTH` は0で自動、4096〜32768で直接指定できます。Ollamaのクラウドモデルはこの設定では使いません。
+
+取得後に文章生成への対応・モデルの入力枠上限・JSON schema応答・実際の入力枠を確認し、成功後に仕上げ用の設定へ保存します。直接指定したモデルが容量不足・JSON非対応の場合は、別モデルへ変更せずに停止します。`LLM_MODEL` はモデル名、`LLM_CONTEXT` は入力枠、`LLM_MEMORY` は空きメモリーを確認し、必要に応じて `auto` へ戻すかローカルLLMをOFFにしてください。変更後はセル4を再実行し、アプリを停止・起動し直します。
+
+モデルのタグと配布サイズは [Qwen3](https://ollama.com/library/qwen3/tags)・[Qwen2.5 3B](https://ollama.com/library/qwen2.5:3b-instruct)・[1.5B](https://ollama.com/library/qwen2.5:1.5b-instruct)、入力枠とメモリーの関係は [Ollama公式の説明](https://docs.ollama.com/context-length) を参照してください。
+
 旧版の環境準備で `pip check` や依存関係の衝突が表示された場合は、必要な結果を保存してからColabのランタイムを削除・再接続し、最新版のノートブックを先頭から実行してください。Google Driveに保存していない一時ファイルは、ランタイムの削除で失われます。
 
 ## 追加の文字起こし・音声前処理
