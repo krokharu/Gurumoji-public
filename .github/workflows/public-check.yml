@@ -2,9 +2,9 @@ name: 公開範囲の読取専用検査
 
 on:
   push:
-    branches: [public/release, public/develop]
+    branches: [public/release]
   pull_request:
-    branches: [public/release, public/develop]
+    branches: [public/release]
   workflow_dispatch:
 
 # 版更新・コミット・タグ・Releaseの作成権限を持たない検査。

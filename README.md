@@ -90,4 +90,4 @@ LinuxではPython環境と依存関係を準備して `bash scripts/run_cloud.sh
 
 不具合は [Issues](https://github.com/krokharu/Gurumoji-public/issues) へ、使用OS、アプリの版、再現手順、期待した動作と実際の動作を添えて報告してください。ログや画面を添付するときは、録音内容・個人パス・APIキーなどを除いてください。
 
-配布用・既定ブランチは [`public/release`](https://github.com/krokharu/Gurumoji-public/tree/public/release)、公開版の開発ブランチは [`public/develop`](https://github.com/krokharu/Gurumoji-public/tree/public/develop) です。変更を提案する際は [公開版の開発手順](docs/DEVELOPMENT.md) を参照してください。
+公開版は [`public/release`](https://github.com/krokharu/Gurumoji-public/tree/public/release) の1ブランチで管理し、検証・配布の入口を統一しています。変更を提案する際は [公開版の開発手順](docs/DEVELOPMENT.md) を参照してください。

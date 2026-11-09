@@ -11,9 +11,9 @@ name: 公開版の検査と版管理
 
 on:
   push:
-    branches: [public/release, public/develop]
+    branches: [public/release]
   pull_request:
-    branches: [public/release, public/develop]
+    branches: [public/release]
   workflow_dispatch:
     inputs:
       kind:

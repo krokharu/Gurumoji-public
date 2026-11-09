@@ -6,25 +6,24 @@
 
 | ブランチ | 用途 |
 | --- | --- |
-| `public/release` | 利用者へ配布する版・既定ブランチ |
-| `public/develop` | 公開版の開発・レビュー |
+| `public/release` | 公開版の検証・配布を集約する唯一のブランチ・既定ブランチ |
 
-利用者データ・認証情報・個人設定・内部試験資料を含めない状態を起点とし、両ブランチで同じ公開範囲を守ります。
+利用者データ・認証情報・個人設定・内部試験資料を含めない状態を起点とし、このブランチで公開範囲を守ります。
 
 ## 開発する
 
 ```powershell
-git clone --single-branch --branch public/develop https://github.com/krokharu/Gurumoji-public.git Gurumoji-public-development
+git clone --single-branch --branch public/release https://github.com/krokharu/Gurumoji-public.git Gurumoji-public-development
 cd Gurumoji-public-development
 python .github/scripts/check_public_boundary.py
 python scripts/bump_version.py check
 ```
 
-変更は `public/develop` でレビューし、動作確認後に `public/release` へ反映します。試験は隔離した一時DB・一時Vaultで実行し、実利用者の録音・本文・属性・研究ノートを使いません。内部の試験資産や詳細設計書は公開リポジトリへ追加しません。
+変更はローカルで検証し、公開範囲の確認後に `public/release` へ反映します。PRを使う場合も統合先は `public/release` とし、統合後は作業ブランチを削除します。未検証の変更を保留する場合は、公開版へ取り込まず退避タグで保持します。試験は隔離した一時DB・一時Vaultで実行し、実利用者の録音・本文・属性・研究ノートを使いません。内部の試験資産や詳細設計書は公開リポジトリへ追加しません。
 
 他の作業リポジトリから変更を移す場合は、内容を監査し、必要なコードだけを取り込みます。履歴全体をmergeすると、削除済みの資料や秘密情報も公開履歴へ入るため、公開前に到達可能な履歴を検査します。
 
-GitHub Actionsでは両公開ブランチの履歴に対して、禁止パス・資格情報のパターン・個人の絶対パス・ノートブックの実行結果を確認し、版表記の整合も検査します。検査は実データでの動作確認やモデル品質の検証を代替しません。
+GitHub Actionsでは `public/release` の履歴に対して、禁止パス・資格情報のパターン・個人の絶対パス・ノートブックの実行結果を確認し、版表記の整合も検査します。検査は実データでの動作確認やモデル品質の検証を代替しません。
 
 Actionsの「公開範囲の読取専用検査」は手動でも実行できます。内容の読み取りと検査だけを行い、版更新・コミット・タグ・Releaseの作成権限は持ちません。
 
@@ -47,7 +46,7 @@ Gitの追跡ファイルだけから配布物を作ります。`.gitattributes` 
 - 次の数字: 通常の機能更新で上げます。
 - 最後の数字: 細かい修正で上げます。
 
-`public/release` へのpushで版を自動更新します。`feat:` を含めば通常アップデート、`docs/chore/ci/test/style` だけなら据え置き、それ以外はパッチです。`public/develop` は検査のみ実行します。
+`public/release` へのpushで版を自動更新します。`feat:` を含めば通常アップデート、`docs/chore/ci/test/style` だけなら据え置き、それ以外はパッチです。
 
 βの付け外しとメジャーアップデートはActionsの手動実行（`release` / `major` / `beta-on` / `beta-off`）で行います。画面に「Coming Soon」が残っているのにβがない場合、検査は失敗します。
 

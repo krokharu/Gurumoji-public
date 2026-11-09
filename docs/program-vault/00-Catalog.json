@@ -4,41 +4,41 @@
   "notes": [
     {
       "path": "00-AI-Entry.md",
-      "sha256": "9af7ce95bf86807f81713891db817ca357e5b2fde2124c92e6275e59c3bc46cf",
-      "chars": 264,
+      "sha256": "03c3f33a0f358f7ff1170b4a82b1cd7742dfec8d4b7ce90f16a8faeceed0c4b1",
+      "chars": 265,
       "metadata": {
         "note_id": "program-ai-entry",
         "note_type": "retrieval-index",
         "title": "実行時資料と開発資料の入口",
-        "summary": "公開版の実行時定義の入口。公開可能なアプリ変更はpublic/developで管理。",
+        "summary": "公開版の実行時定義の入口。検証・配布はpublic/releaseの1ブランチで管理。",
         "status": "current",
-        "updated": "2026-11-02"
+        "updated": "2026-11-10"
       }
     },
     {
       "path": "00-Home.md",
-      "sha256": "be93a82ca9b3446933f337abac5db10485317254e96d1a7b265a99f1a8660394",
-      "chars": 243,
+      "sha256": "3be2f387025533a492f8438f13b2443de37521060de63505e07d45b9724389f7",
+      "chars": 244,
       "metadata": {
         "note_id": "program-home",
         "note_type": "retrieval-index",
         "title": "実行時参照資料",
-        "summary": "公開版の実行時定義の入口。公開可能なアプリ変更はpublic/developで管理。",
+        "summary": "公開版の実行時定義の入口。検証・配布はpublic/releaseの1ブランチで管理。",
         "status": "current",
-        "updated": "2026-11-02"
+        "updated": "2026-11-10"
       }
     },
     {
       "path": "00-Index.md",
-      "sha256": "fe1d4c20484920f59ee2645afe96cfbf5dc27fbc93ca2342a703c476ce7e3db8",
-      "chars": 296,
+      "sha256": "671d2015e9b8b446c2dce351666a68a55da67e10a5bf1f3d294a0ed9974724a3",
+      "chars": 297,
       "metadata": {
         "note_id": "program-index",
         "note_type": "retrieval-index",
         "title": "実行時参照資料の索引",
-        "summary": "公開版の実行時定義の入口。公開可能なアプリ変更はpublic/developで管理。",
+        "summary": "公開版の実行時定義の入口。検証・配布はpublic/releaseの1ブランチで管理。",
         "status": "current",
-        "updated": "2026-11-02"
+        "updated": "2026-11-10"
       }
     },
     {

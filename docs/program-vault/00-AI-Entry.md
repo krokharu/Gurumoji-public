@@ -2,9 +2,9 @@
 note_id: program-ai-entry
 note_type: retrieval-index
 title: 実行時資料と開発資料の入口
-summary: 公開版の実行時定義の入口。公開可能なアプリ変更はpublic/developで管理。
+summary: 公開版の実行時定義の入口。検証・配布はpublic/releaseの1ブランチで管理。
 status: current
-updated: 2026-11-02
+updated: 2026-11-10
 ---
 
 # 実行時資料と開発資料の入口
