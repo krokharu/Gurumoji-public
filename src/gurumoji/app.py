@@ -240,7 +240,7 @@ warnings.filterwarnings(
 )
 
 PRODUCT_NAME = "グルモジ"
-APP_VERSION = "β0.47.2"
+APP_VERSION = "β0.48.0"
 APP_CREATOR = "Re.kloc"
 APP_NAME = f"{PRODUCT_NAME} | 話者分離文字起こし"
 APP_DIRECTORY = Path(__file__).resolve().parent
