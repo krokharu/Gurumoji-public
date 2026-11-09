@@ -2,6 +2,8 @@
 
 公開先は [krokharu/Gurumoji-public](https://github.com/krokharu/Gurumoji-public) です。公開可能なアプリのコード、利用手順、実行に必要な定義を管理します。
 
+最新版の開発版は別リポジトリで管理します。この公開リポジトリには、解析機能・ObusSQL・MAF・開発版の機能フラグや接続用依存を取り込みません。現在の文字起こし・編集用の画面は維持します。公開元は `public/release` に固定し、開発版のmainを公開先のmainや配布ブランチへ直接pushしないでください。
+
 | ブランチ | 用途 |
 | --- | --- |
 | `public/release` | 利用者へ配布する版・既定ブランチ |

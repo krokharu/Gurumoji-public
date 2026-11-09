@@ -29,11 +29,15 @@ SECRET_PATTERNS = {
 EXCLUDED_FEATURE_PATHS = re.compile(
     r"^(?:src/gurumoji/(?:analysis_[^/]+\.py|research_analysis\.py|"
     r"transformer_analysis\.py|method_experts\.py|orchestration_initial\.py|"
-    r"segment_classification\.py|knowledge_builder/|"
+    r"segment_classification\.py|features\.py|knowledge_builder/|"
+    r"services/(?:maf_dev_bridge|obussql|context_delivery|metric_delivery|"
+    r"orchestration_core_control|orchestration_required_methods|orchestration_task_completion)\.py|"
+    r"web/obussql_routes\.py|static/obussql\.(?:js|css)|templates/dialogs/obussql\.html|"
     r"(?:services|handlers|web)/analysis_[^/]+\.py|"
     r"static/(?:analysis[^/]*|ui/analysis[^/]*)|templates/views/analysis[^/]*)|"
     r"src/(?:analysis_insights|analysis_store|research_analysis|transformer_analysis)\.py|"
-    r"config/(?:analysis_slide_templates\.json|requirements-emotion\.txt)|"
+    r"config/(?:analysis_slide_templates\.json|requirements-emotion\.txt|requirements-(?:gurumoji-maf-dev|obussql[^/]*)\.txt)|"
+    r"docs/OBUSSQL\.md|"
     r"scripts/(?:manage_expert_knowledge\.py|setup_emotion\.bat|bootstrap_s3prl\.py))"
 )
 
